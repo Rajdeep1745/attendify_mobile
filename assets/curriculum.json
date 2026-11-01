@@ -1,0 +1,98 @@
+{
+  "B.Tech": {
+    "semesters": {
+      "1": [
+        { "subjectId": "bt1_phy", "name": "Physics" },
+        { "subjectId": "bt1_math", "name": "Mathematics" },
+        { "subjectId": "bt1_prog", "name": "Programming" }
+      ],
+      "2": [
+        { "subjectId": "bt2_oop", "name": "OOP" },
+        { "subjectId": "bt2_dsa", "name": "DSA" },
+        { "subjectId": "bt2_ele", "name": "Electronics" }
+      ],
+      "3": [
+        { "subjectId": "bt3_dbms", "name": "DBMS" },
+        { "subjectId": "bt3_os", "name": "OS" },
+        { "subjectId": "bt3_cn", "name": "Computer Networks" }
+      ],
+      "4": [
+        { "subjectId": "bt4_ai", "name": "AI" },
+        { "subjectId": "bt4_comp", "name": "Compiler" },
+        { "subjectId": "bt4_cloud", "name": "Cloud" }
+      ],
+      "5": [
+        { "subjectId": "bt5_os", "name": "Operating Systems" },
+        { "subjectId": "bt5_ml", "name": "Machine Learning" },
+        { "subjectId": "bt5_se", "name": "Software Engineering" }
+      ],
+      "6": [
+        { "subjectId": "bt6_bd", "name": "Big Data" },
+        { "subjectId": "bt6_cs", "name": "Cyber Security" },
+        { "subjectId": "bt6_bc", "name": "Blockchain" }
+      ],
+      "7": [
+        { "subjectId": "bt7_proj", "name": "Project" },
+        { "subjectId": "bt7_dl", "name": "Deep Learning" }
+      ],
+      "8": [
+        { "subjectId": "bt8_intern", "name": "Internship" },
+        { "subjectId": "bt8_seminar", "name": "Seminar" }
+      ]
+    }
+  },
+  "M.Tech": {
+    "semesters": {
+      "1": [
+        { "subjectId": "mt1_aai", "name": "Advanced AI" },
+        { "subjectId": "mt1_ds", "name": "Distributed Systems" }
+      ],
+      "2": [
+        { "subjectId": "mt2_rm", "name": "Research Methodology" },
+        { "subjectId": "mt2_ml", "name": "ML" }
+      ],
+      "3": [
+        { "subjectId": "mt3_thesis", "name": "Thesis" }
+      ],
+      "4": [
+        { "subjectId": "mt4_dissertation", "name": "Dissertation" }
+      ]
+    }
+  },
+  "MSc": {
+    "semesters": {
+      "1": [
+        { "subjectId": "msc1_stats", "name": "Statistics" },
+        { "subjectId": "msc1_py", "name": "Python" }
+      ],
+      "2": [
+        { "subjectId": "msc2_dm", "name": "Data Mining" },
+        { "subjectId": "msc2_net", "name": "Networks" }
+      ],
+      "3": [
+        { "subjectId": "msc3_ml", "name": "ML" }
+      ],
+      "4": [
+        { "subjectId": "msc4_proj", "name": "Project" }
+      ]
+    }
+  },
+  "MCA": {
+    "semesters": {
+      "1": [
+        { "subjectId": "mca1_stats", "name": "Statistics" },
+        { "subjectId": "mca1_py", "name": "Python" }
+      ],
+      "2": [
+        { "subjectId": "mca2_dm", "name": "Data Mining" },
+        { "subjectId": "mca2_net", "name": "Networks" }
+      ],
+      "3": [
+        { "subjectId": "mca3_ml", "name": "ML" }
+      ],
+      "4": [
+        { "subjectId": "mca4_proj", "name": "Project" }
+      ]
+    }
+  }
+}
