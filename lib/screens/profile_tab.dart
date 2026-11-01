@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../services/profile_service.dart';
+import 'change_password_screen.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ProfileTab extends StatefulWidget {
@@ -262,6 +263,14 @@ class _ProfileTabState extends State<ProfileTab> {
 
           const SizedBox(height: 22),
 
+          _sectionTitle("Security"),
+
+          const SizedBox(height: 12),
+
+          _changePasswordCard(),
+
+          const SizedBox(height: 22),
+
           _sectionTitle("Attendance Preferences"),
 
           const SizedBox(height: 12),
@@ -401,6 +410,70 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // =========================================================
+  // SECURITY
+  // =========================================================
+
+  Widget _changePasswordCard() {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ChangePasswordScreen(),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.grey.shade100),
+          ),
+          child: Row(
+            children: [
+              _iconBox(
+                Icons.lock_reset_rounded,
+                Colors.deepPurple,
+                const Color(0xffEEEAFE),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Change Password",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      "Update your account password",
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.black54,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

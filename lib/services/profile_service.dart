@@ -62,6 +62,47 @@ class ProfileService {
   }
 
   // ---------------------------------------------------------
+  // CHANGE PASSWORD
+  // ---------------------------------------------------------
+
+  static Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final token = await _token();
+
+    if (token == null || token.isEmpty) {
+      throw Exception("Authentication token missing. Please log in again.");
+    }
+
+    final res = await http.patch(
+      Uri.parse('$baseUrl/users/me/password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      }),
+    );
+
+    Map<String, dynamic> data = {};
+    try {
+      final decoded = jsonDecode(res.body);
+      if (decoded is Map) data = Map<String, dynamic>.from(decoded);
+    } catch (_) {}
+
+    if (res.statusCode == 200) return;
+
+    throw Exception(
+      data["error"]?.toString() ??
+          data["message"]?.toString() ??
+          "Could not change password (${res.statusCode}).",
+    );
+  }
+
+  // ---------------------------------------------------------
   // UPDATE PROFILE PHOTO
   // ---------------------------------------------------------
 

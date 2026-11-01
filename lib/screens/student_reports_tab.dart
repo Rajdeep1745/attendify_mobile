@@ -282,72 +282,279 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
   // =========================================================
 
   Widget _subjectSelector() {
+    final selectedName = selectedSubject?.name ?? "All subjects";
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-
-        borderRadius: BorderRadius.circular(18),
-
-        border: Border.all(color: Colors.grey.shade100),
-
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xffFFFFFF), Color(0xffF8F6FF)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xffEAE5FF)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.025),
-
-            blurRadius: 12,
-
-            offset: const Offset(0, 4),
+            color: const Color(0xff5B45D9).withValues(alpha: 0.07),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<SubjectModel>(
-          value: selectedSubject,
-
-          isExpanded: true,
-
-          hint: const Text(
-            "Select a subject",
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-          ),
-
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-
-          borderRadius: BorderRadius.circular(18),
-
-          items: [
-            const DropdownMenuItem<SubjectModel>(
-              value: null,
-
-              child: Text(
-                "All subjects",
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xffEEEAFE),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  color: Colors.deepPurple,
+                  size: 20,
+                ),
               ),
-            ),
-
-            ...widget.subjects.map((subject) {
-              return DropdownMenuItem<SubjectModel>(
-                value: subject,
-
+              const SizedBox(width: 11),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Choose a subject",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      "Personalise your attendance view",
+                      style: TextStyle(color: Color(0xff77738A), fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xffEEEAFE),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: Text(
-                  subject.name,
-
-                  overflow: TextOverflow.ellipsis,
-
+                  "${widget.subjects.length} subjects",
                   style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    color: Colors.deepPurple,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
                   ),
                 ),
-              );
-            }),
-          ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.only(left: 12, right: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: const Color(0xffE7E2F8)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<SubjectModel>(
+                value: selectedSubject,
+                isExpanded: true,
+                menuMaxHeight: 420,
+                borderRadius: BorderRadius.circular(16),
+                icon: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xffF0EDFF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+                selectedItemBuilder: (context) {
+                  return [
+                    _selectedSubjectItem(
+                      "All subjects",
+                      "Overall attendance overview",
+                      isAll: true,
+                    ),
+                    ...widget.subjects.map(
+                      (subject) => _selectedSubjectItem(
+                        subject.name,
+                        subject.programme.isNotEmpty
+                            ? "${subject.programme} · Semester ${subject.semester}"
+                            : "Subject attendance report",
+                      ),
+                    ),
+                  ];
+                },
+                items: [
+                  DropdownMenuItem<SubjectModel>(
+                    value: null,
+                    child: _subjectMenuItem(
+                      title: "All subjects",
+                      subtitle: "Overall attendance overview",
+                      icon: Icons.grid_view_rounded,
+                      isAll: true,
+                    ),
+                  ),
+                  ...widget.subjects.map(
+                    (subject) => DropdownMenuItem<SubjectModel>(
+                      value: subject,
+                      child: _subjectMenuItem(
+                        title: subject.name,
+                        subtitle: subject.programme.isNotEmpty
+                            ? "${subject.programme} · Semester ${subject.semester}"
+                            : "Subject attendance report",
+                        icon: Icons.menu_book_rounded,
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: _selectSubject,
+              ),
+            ),
+          ),
+          const SizedBox(height: 9),
+          Row(
+            children: [
+              const Icon(
+                Icons.info_outline_rounded,
+                size: 14,
+                color: Color(0xff827B9D),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  selectedSubject == null
+                      ? "Showing your combined attendance insights."
+                      : "Showing attendance details for $selectedName.",
+                  style: const TextStyle(
+                    color: Color(0xff827B9D),
+                    fontSize: 11.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-          onChanged: _selectSubject,
+  Widget _selectedSubjectItem(
+    String title,
+    String subtitle, {
+    bool isAll = false,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: const Color(0xffEEEAFE),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(
+            isAll ? Icons.grid_view_rounded : Icons.menu_book_rounded,
+            color: Colors.deepPurple,
+            size: 18,
+          ),
         ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xff827B9D),
+                  fontSize: 10.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static Widget _subjectMenuItem({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    bool isAll = false,
+  }) {
+    return SizedBox(
+      height: 54,
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xffEEEAFE),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: Colors.deepPurple, size: 17),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xff827B9D),
+                    fontSize: 10.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

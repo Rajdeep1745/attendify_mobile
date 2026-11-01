@@ -108,9 +108,24 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
 
     final token = prefs.getString("token");
-
     if (token == null || token.trim().isEmpty) {
       return null;
+    }
+
+    // Keep the last known user so the app can still open if the
+    // backend is temporarily unreachable. SharedPreferences survives
+    // app closure/restart; only an explicitly invalid token clears it.
+    Map<String, dynamic>? cachedUser;
+    final cachedJson = prefs.getString("user");
+    if (cachedJson != null && cachedJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(cachedJson);
+        if (decoded is Map) {
+          cachedUser = Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {
+        cachedUser = null;
+      }
     }
 
     try {
@@ -119,50 +134,44 @@ class AuthService {
             Uri.parse("$baseUrl/users/me"),
             headers: {"Authorization": "Bearer $token"},
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
 
         Map<String, dynamic> user;
-
         if (decoded is Map && decoded["data"] is Map) {
           user = Map<String, dynamic>.from(decoded["data"]);
         } else if (decoded is Map) {
           user = Map<String, dynamic>.from(decoded);
         } else {
-          await clearSession();
-          return null;
+          return cachedUser;
         }
 
         final role = user["role"]?.toString().toLowerCase();
-
         if (role != "student" && role != "teacher") {
-          await clearSession();
-          return null;
+          // A malformed response shouldn't silently log the user out.
+          return cachedUser;
         }
 
         await prefs.setString("role", role!);
-
         await prefs.setString("name", user["name"]?.toString() ?? "");
-
         await prefs.setString("user", jsonEncode(user));
-
         return user;
       }
 
-      if (response.statusCode == 401 ||
-          response.statusCode == 403 ||
-          response.statusCode == 404) {
+      // A 401/403 means the server has explicitly rejected the token.
+      if (response.statusCode == 401 || response.statusCode == 403) {
         await clearSession();
         return null;
       }
 
-      await clearSession();
-      return null;
+      // Server errors or a missing route aren't proof that the token
+      // is invalid. Keep the saved session and allow a retry later.
+      return cachedUser;
     } catch (_) {
-      await clearSession();
-      return null;
+      // No network / timeout: preserve login and use cached user data.
+      return cachedUser;
     }
   }
 
