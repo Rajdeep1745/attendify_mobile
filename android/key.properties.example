@@ -1,0 +1,6 @@
+# Copy to key.properties and supply your own release keystore details.
+storeFile=/absolute/path/to/release-keystore.jks
+storePassword=replace-locally
+keyAlias=replace-locally
+keyPassword=replace-locally
+# Also set ATTENDIFY_APPLICATION_ID in your private Gradle properties.

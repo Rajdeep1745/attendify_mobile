@@ -27,7 +27,7 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
   void didUpdateWidget(covariant StudentAttendanceTab oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.subjects.length != widget.subjects.length) {
+    if (oldWidget.subjects != widget.subjects) {
       _loadAttendance();
     }
   }
@@ -84,17 +84,8 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
   // ATTENDANCE COLOR
   // =========================================================
 
-  Color _attendanceColor(double percentage) {
-    if (percentage >= 75) {
-      return Colors.green;
-    }
-
-    if (percentage >= 60) {
-      return Colors.orange;
-    }
-
-    return Colors.red;
-  }
+  Color _attendanceColor(double percentage, int target) =>
+      percentage >= target ? Colors.green : Colors.orange;
 
   // =========================================================
   // OPEN SUBJECT
@@ -142,7 +133,7 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
   Widget _subjectCard(SubjectModel subject) {
     final percentage = _attendance(subject);
 
-    final color = _attendanceColor(percentage);
+    final color = _attendanceColor(percentage, subject.threshold);
 
     final threshold = subject.threshold;
 
@@ -220,7 +211,7 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
                       const SizedBox(height: 4),
 
                       Text(
-                        "Threshold ${threshold}%",
+                        "Threshold $threshold%",
 
                         style: TextStyle(
                           color: Colors.grey.shade500,

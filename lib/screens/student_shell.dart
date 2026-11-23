@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
 
 import '../models/subject_model.dart';
 import '../services/subject_service.dart';
@@ -16,7 +16,8 @@ class StudentShell extends StatefulWidget {
   State<StudentShell> createState() => _StudentShellState();
 }
 
-class _StudentShellState extends State<StudentShell> {
+class _StudentShellState extends State<StudentShell>
+    with WidgetsBindingObserver {
   int currentIndex = 0;
 
   List<SubjectModel> subjects = [];
@@ -28,7 +29,29 @@ class _StudentShellState extends State<StudentShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     loadSubjects();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _resume();
+  }
+
+  Future<void> _resume() async {
+    final user = await AuthService.validateSession();
+    if (!mounted) return;
+    if (user == null) {
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+    } else {
+      await loadSubjects();
+    }
   }
 
   Future<void> loadSubjects() async {
@@ -91,9 +114,7 @@ class _StudentShellState extends State<StudentShell> {
 
     if (shouldLogout != true) return;
 
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.clear();
+    await AuthService.clearSession();
 
     if (!context.mounted) return;
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../models/subject_model.dart';
 import '../services/attendance_service.dart';
-import 'camera_screen.dart';
 import 'manual_attendance_screen.dart';
 
 class HomeTab extends StatefulWidget {
@@ -171,17 +170,6 @@ class _HomeTabState extends State<HomeTab> {
           const SizedBox(height: 24),
 
           _sectionTitle("Quick Actions"),
-
-          const SizedBox(height: 12),
-
-          _actionCard(
-            title: "Automatic Attendance",
-            subtitle: "Use face recognition to mark attendance",
-            icon: Icons.camera_alt_rounded,
-            iconColor: Colors.deepPurple,
-            iconBackground: const Color(0xffEEEAFE),
-            onTap: () => _openCamera(subject),
-          ),
 
           const SizedBox(height: 12),
 
@@ -635,6 +623,7 @@ class _HomeTabState extends State<HomeTab> {
                               Navigator.pop(dialogContext);
                             }
 
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
@@ -696,30 +685,13 @@ class _HomeTabState extends State<HomeTab> {
   // NAVIGATION
   // =========================================================
 
-  void _openCamera(SubjectModel? subject) {
+  Future<void> _openManualAttendance(SubjectModel? subject) async {
     if (subject == null) {
       _showSelectSubject();
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CameraScreen(
-          subjectId: subject.subjectId,
-          subjectName: subject.name,
-        ),
-      ),
-    );
-  }
-
-  void _openManualAttendance(SubjectModel? subject) {
-    if (subject == null) {
-      _showSelectSubject();
-      return;
-    }
-
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ManualAttendanceScreen(
@@ -728,6 +700,7 @@ class _HomeTabState extends State<HomeTab> {
         ),
       ),
     );
+    if (mounted) await loadStats();
   }
 
   void _showSelectSubject() {

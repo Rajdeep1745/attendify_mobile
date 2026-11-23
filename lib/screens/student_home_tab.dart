@@ -17,6 +17,7 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
   bool isLoading = true;
 
   double overallAttendance = 0;
+  double attendanceTarget = 0;
 
   List<dynamic> todayAttendance = [];
 
@@ -30,7 +31,7 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
   void didUpdateWidget(covariant StudentHomeTab oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.subjects.length != widget.subjects.length) {
+    if (oldWidget.subjects != widget.subjects) {
       _loadData();
     }
   }
@@ -75,6 +76,9 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
 
       setState(() {
         overallAttendance = overall;
+        attendanceTarget =
+            double.tryParse(profile["attendance_target"]?.toString() ?? "") ??
+            0;
         todayAttendance = attendance;
         isLoading = false;
       });
@@ -104,17 +108,8 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
     return null;
   }
 
-  Color _attendanceColor(double percentage) {
-    if (percentage >= 75) {
-      return Colors.green;
-    }
-
-    if (percentage >= 60) {
-      return Colors.orange;
-    }
-
-    return Colors.red;
-  }
+  Color _attendanceColor(double percentage) =>
+      percentage >= attendanceTarget ? Colors.green : Colors.orange;
 
   @override
   Widget build(BuildContext context) {
@@ -230,7 +225,9 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    overallAttendance >= 75 ? "On track" : "Below target",
+                    overallAttendance >= attendanceTarget
+                        ? "On track"
+                        : "Below target",
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,

@@ -1,42 +1,32 @@
-import 'dart:convert';
-
-import 'package:flutter/services.dart';
-
 import '../models/curriculum_model.dart';
+import 'subject_service.dart';
 
 class CurriculumService {
   static Future<List<ProgrammeNode>> loadCurriculum() async {
-    final jsonString = await rootBundle.loadString('assets/curriculum.json');
-
-    final Map<String, dynamic> data = json.decode(jsonString);
-
-    final List<ProgrammeNode> programmes = [];
-
-    data.forEach((programmeName, programmeData) {
-      final semestersJson = programmeData["semesters"] as Map<String, dynamic>;
-
-      final List<SemesterNode> semesters = [];
-
-      semestersJson.forEach((semesterNo, subjectsJson) {
-        final subjects = (subjectsJson as List)
-            .map(
-              (e) => SubjectNode(
-                subjectId: e["subjectId"].toString(),
-                name: e["name"].toString(),
-              ),
-            )
-            .toList();
-
-        semesters.add(
-          SemesterNode(number: int.parse(semesterNo), subjects: subjects),
-        );
-      });
-
-      semesters.sort((a, b) => a.number.compareTo(b.number));
-
-      programmes.add(ProgrammeNode(name: programmeName, semesters: semesters));
-    });
-
-    return programmes;
+    final subjects = await SubjectService.getSubjects();
+    final grouped = <String, Map<int, List<SubjectNode>>>{};
+    for (final subject in subjects) {
+      final semesters = grouped.putIfAbsent(subject.programme, () => {});
+      semesters
+          .putIfAbsent(subject.semester, () => [])
+          .add(SubjectNode(subjectId: subject.subjectId, name: subject.name));
+    }
+    return grouped.entries
+        .map(
+          (programme) => ProgrammeNode(
+            name: programme.key,
+            semesters:
+                programme.value.entries
+                    .map(
+                      (semester) => SemesterNode(
+                        number: semester.key,
+                        subjects: semester.value,
+                      ),
+                    )
+                    .toList()
+                  ..sort((a, b) => a.number.compareTo(b.number)),
+          ),
+        )
+        .toList();
   }
 }

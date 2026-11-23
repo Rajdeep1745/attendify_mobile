@@ -690,7 +690,7 @@ class _AttendanceTabState extends State<AttendanceTab> {
 
     final String studentName = student['name']?.toString() ?? 'Student';
 
-    final percentage = student['percentage'] ?? 0;
+    final percentage = student['subjectPercentage'] ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 11),

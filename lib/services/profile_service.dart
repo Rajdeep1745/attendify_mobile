@@ -1,3 +1,4 @@
+import 'api_client.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -18,7 +19,7 @@ class ProfileService {
   static Future<Map<String, dynamic>> getProfile() async {
     final token = await _token();
 
-    final res = await http.get(
+    final res = await ApiClient.get(
       Uri.parse("$baseUrl/users/me"),
       headers: {"Authorization": "Bearer $token"},
     );
@@ -39,21 +40,19 @@ class ProfileService {
   static Future<void> updateProfile({
     required String name,
     required String department,
-    required int threshold,
+    int? threshold,
   }) async {
     final token = await _token();
+    final body = <String, Object>{"name": name, "department": department};
+    if (threshold != null) body["defaultThreshold"] = threshold;
 
-    final res = await http.patch(
+    final res = await ApiClient.patch(
       Uri.parse("$baseUrl/users/me"),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
       },
-      body: jsonEncode({
-        "name": name,
-        "department": department,
-        "defaultThreshold": threshold,
-      }),
+      body: jsonEncode(body),
     );
 
     if (res.statusCode != 200) {
@@ -75,7 +74,7 @@ class ProfileService {
       throw Exception("Authentication token missing. Please log in again.");
     }
 
-    final res = await http.patch(
+    final res = await ApiClient.patch(
       Uri.parse('$baseUrl/users/me/password'),
       headers: {
         'Content-Type': 'application/json',
@@ -144,7 +143,9 @@ class ProfileService {
       ),
     );
 
-    final streamedResponse = await request.send();
+    final streamedResponse = await request.send().timeout(
+      const Duration(seconds: 60),
+    );
     final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200) {

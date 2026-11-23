@@ -198,27 +198,8 @@ class AuthService {
     required String password,
     required String department,
     required String role,
-  }) async {
-    final url = Uri.parse('$baseUrl/auth/signup');
-
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'name': name,
-        'email': email,
-        'password': password,
-        'department': department,
-        'role': role,
-      }),
-    );
-
-    final data = jsonDecode(response.body);
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return {"success": true, "data": data};
-    }
-
-    return {"success": false, "message": data["error"] ?? "Signup failed"};
-  }
+  }) async => {
+    "success": false,
+    "message": "Signup is closed. Contact your administrator for an account.",
+  };
 }

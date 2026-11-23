@@ -1,3 +1,4 @@
+import 'api_client.dart';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -58,7 +59,7 @@ class AttendanceService {
   static Future<Map<String, dynamic>> getStats(String subjectId) async {
     final token = await _token();
 
-    final res = await http.get(
+    final res = await ApiClient.get(
       Uri.parse("$baseUrl/attendance/$subjectId/stats"),
       headers: {"Authorization": "Bearer $token"},
     );
@@ -73,7 +74,7 @@ class AttendanceService {
   static Future<List<dynamic>> getGraph(String subjectId) async {
     final token = await _token();
 
-    final res = await http.get(
+    final res = await ApiClient.get(
       Uri.parse("$baseUrl/attendance/$subjectId/graph"),
       headers: {"Authorization": "Bearer $token"},
     );
@@ -88,7 +89,7 @@ class AttendanceService {
   static Future<List<dynamic>> getFrequentAbsentees(String subjectId) async {
     final token = await _token();
 
-    final res = await http.get(
+    final res = await ApiClient.get(
       Uri.parse("$baseUrl/attendance/$subjectId/frequent-absentees"),
       headers: {"Authorization": "Bearer $token"},
     );
@@ -106,7 +107,7 @@ class AttendanceService {
   ) async {
     final token = await _token();
 
-    final res = await http.get(
+    final res = await ApiClient.get(
       Uri.parse("$baseUrl/attendance/$subjectId/daily?date=$date"),
       headers: {"Authorization": "Bearer $token"},
     );
@@ -132,7 +133,7 @@ class AttendanceService {
       };
     }).toList();
 
-    final res = await http.patch(
+    final res = await ApiClient.patch(
       Uri.parse("$baseUrl/attendance/$subjectId/override"),
       headers: {
         "Authorization": "Bearer $token",
@@ -148,13 +149,14 @@ class AttendanceService {
 
   static Future<void> markManualAttendance(
     String subjectId,
-    List<Map<String, dynamic>> records,
-  ) async {
+    List<Map<String, dynamic>> records, {
+    String? date,
+  }) async {
     final token = await _token();
 
-    final today = DateTime.now().toIso8601String().split("T").first;
+    final today = date ?? DateTime.now().toIso8601String().split("T").first;
 
-    final res = await http.post(
+    final res = await ApiClient.post(
       Uri.parse("$baseUrl/attendance/$subjectId/mark"),
       headers: {
         "Authorization": "Bearer $token",
@@ -173,7 +175,7 @@ class AttendanceService {
   static Future<List<dynamic>> fetchStudents(String subjectId) async {
     final token = await _token();
 
-    final res = await http.get(
+    final res = await ApiClient.get(
       Uri.parse("$baseUrl/students/$subjectId"),
       headers: {
         "Authorization": "Bearer $token",
@@ -191,7 +193,7 @@ class AttendanceService {
   static Future<int> updateThreshold(String subjectId, int threshold) async {
     final token = await _token();
 
-    final res = await http.patch(
+    final res = await ApiClient.patch(
       Uri.parse("$baseUrl/subject/$subjectId/threshold"),
       headers: {
         "Authorization": "Bearer $token",
@@ -222,7 +224,7 @@ class AttendanceService {
       throw Exception("Authentication token missing");
     }
 
-    final res = await http.get(
+    final res = await ApiClient.get(
       Uri.parse("$baseUrl/attendance/student?date=$date"),
       headers: {"Authorization": "Bearer $token"},
     );
@@ -265,7 +267,7 @@ class AttendanceService {
       throw Exception("Authentication token missing");
     }
 
-    final res = await http.get(
+    final res = await ApiClient.get(
       Uri.parse("$baseUrl/subject/$subjectId/overview"),
       headers: {"Authorization": "Bearer $token"},
     );
@@ -298,7 +300,7 @@ class AttendanceService {
       throw Exception("Authentication token missing");
     }
 
-    final res = await http.get(
+    final res = await ApiClient.get(
       Uri.parse("$baseUrl/subject/$subjectId/reports"),
       headers: {"Authorization": "Bearer $token"},
     );

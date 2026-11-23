@@ -18,6 +18,7 @@ class _ProfileTabState extends State<ProfileTab> {
 
   final deptController = TextEditingController();
 
+  String role = "student";
   String email = "";
   String avatarUrl = "";
 
@@ -97,11 +98,11 @@ class _ProfileTabState extends State<ProfileTab> {
         ),
       );
     } finally {
-      if (!mounted) return;
-
-      setState(() {
-        isSaving = false;
-      });
+      if (mounted) {
+        setState(() {
+          isSaving = false;
+        });
+      }
     }
   }
 
@@ -116,11 +117,12 @@ class _ProfileTabState extends State<ProfileTab> {
 
         deptController.text = data["department"] ?? "";
 
+        role = data["role"]?.toString() ?? "student";
         email = data["email"] ?? "";
 
         avatarUrl = data["avatar"] ?? "";
 
-        final value = data["defaultThreshold"];
+        final value = data["default_threshold"];
 
         threshold = value is num
             ? value.toDouble()
@@ -155,7 +157,7 @@ class _ProfileTabState extends State<ProfileTab> {
       await ProfileService.updateProfile(
         name: nameController.text.trim(),
         department: deptController.text.trim(),
-        threshold: threshold.toInt(),
+        threshold: role == "teacher" ? threshold.toInt() : null,
       );
 
       if (!mounted) return;
@@ -196,25 +198,25 @@ class _ProfileTabState extends State<ProfileTab> {
         ),
       );
     } finally {
-      if (!mounted) return;
-
-      setState(() {
-        isSaving = false;
-      });
+      if (mounted) {
+        setState(() {
+          isSaving = false;
+        });
+      }
     }
   }
 
   String get _displayName {
     final name = nameController.text.trim();
 
-    return name.isEmpty ? "Teacher" : name;
+    return name.isEmpty ? (role == "teacher" ? "Teacher" : "Student") : name;
   }
 
   String get _initial {
     final name = nameController.text.trim();
 
     if (name.isEmpty) {
-      return "T";
+      return role == "teacher" ? "T" : "S";
     }
 
     return name.substring(0, 1).toUpperCase();
@@ -271,11 +273,11 @@ class _ProfileTabState extends State<ProfileTab> {
 
           const SizedBox(height: 22),
 
-          _sectionTitle("Attendance Preferences"),
+          if (role == "teacher") _sectionTitle("Attendance Preferences"),
 
           const SizedBox(height: 12),
 
-          _thresholdCard(),
+          if (role == "teacher") _thresholdCard(),
 
           const SizedBox(height: 24),
 
@@ -311,7 +313,7 @@ class _ProfileTabState extends State<ProfileTab> {
         children: [
           // Larger profile image
           GestureDetector(
-            onTap: isSaving ? null : _changeProfilePhoto,
+            onTap: isSaving || role != "teacher" ? null : _changeProfilePhoto,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -335,30 +337,31 @@ class _ProfileTabState extends State<ProfileTab> {
                   ),
                 ),
 
-                Positioned(
-                  right: 2,
-                  bottom: 2,
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.18),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.camera_alt_rounded,
-                      color: Colors.deepPurple,
-                      size: 19,
+                if (role == "teacher")
+                  Positioned(
+                    right: 2,
+                    bottom: 2,
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.18),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt_rounded,
+                        color: Colors.deepPurple,
+                        size: 19,
+                      ),
                     ),
                   ),
-                ),
 
                 if (isSaving)
                   Positioned.fill(
@@ -399,7 +402,7 @@ class _ProfileTabState extends State<ProfileTab> {
 
           // Larger email
           Text(
-            email.isEmpty ? "Teacher account" : email,
+            email.isEmpty ? "Account" : email,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -426,9 +429,7 @@ class _ProfileTabState extends State<ProfileTab> {
         borderRadius: BorderRadius.circular(18),
         onTap: () {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const ChangePasswordScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
           );
         },
         child: Container(
@@ -459,18 +460,12 @@ class _ProfileTabState extends State<ProfileTab> {
                     SizedBox(height: 4),
                     Text(
                       "Update your account password",
-                      style: TextStyle(
-                        color: Colors.black54,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.black54, fontSize: 12),
                     ),
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Colors.black54,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: Colors.black54),
             ],
           ),
         ),
@@ -602,11 +597,7 @@ class _ProfileTabState extends State<ProfileTab> {
   Widget _thresholdCard() {
     final value = threshold.round();
 
-    final color = value >= 75
-        ? Colors.green
-        : value >= 60
-        ? Colors.orange
-        : Colors.red;
+    const color = Colors.deepPurple;
 
     return Container(
       padding: const EdgeInsets.all(18),

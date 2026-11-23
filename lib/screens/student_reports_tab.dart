@@ -163,7 +163,7 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
   // CLASSES NEEDED TO REACH THRESHOLD
   // =========================================================
 
-  int _classesNeeded(
+  int? _classesNeeded(
     double attendance,
     int totalClasses,
     int attendedClasses,
@@ -176,7 +176,7 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
     final target = threshold / 100.0;
 
     if (target >= 1) {
-      return 0;
+      return null;
     }
 
     final numerator = (target * totalClasses) - attendedClasses;
@@ -190,7 +190,7 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
   // CLASSES THAT CAN BE MISSED
   // =========================================================
 
-  int _classesCanMiss(
+  int? _classesCanMiss(
     double attendance,
     int totalClasses,
     int attendedClasses,
@@ -203,7 +203,7 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
     final target = threshold / 100.0;
 
     if (target <= 0) {
-      return 999;
+      return null;
     }
 
     final result = (attendedClasses / target) - totalClasses;
@@ -1145,8 +1145,8 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
     SubjectModel subject,
     double percentage,
     int threshold,
-    int needed,
-    int canMiss,
+    int? needed,
+    int? canMiss,
   ) {
     final above = percentage >= threshold;
 
@@ -1289,9 +1289,13 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
                 Expanded(
                   child: Text(
                     above
-                        ? canMiss == 0
+                        ? canMiss == null
+                              ? "Your target is 0%; no minimum attendance is required."
+                              : canMiss == 0
                               ? "You are currently at the threshold. Attend the next classes to create a safety margin."
                               : "You can miss $canMiss more ${canMiss == 1 ? "class" : "classes"} and remain at the threshold."
+                        : needed == null
+                        ? "A 100% target cannot be reached after an absence."
                         : needed == 0
                         ? "You are at the threshold."
                         : "Attend the next $needed ${needed == 1 ? "class" : "classes"} to reach the threshold.",
@@ -1762,8 +1766,8 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
   Widget _insightCard(
     double percentage,
     int threshold,
-    int needed,
-    int canMiss,
+    int? needed,
+    int? canMiss,
     int total,
   ) {
     final above = percentage >= threshold;
@@ -1781,15 +1785,18 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
       color = Colors.deepPurple;
     } else if (above) {
       title = "You are on track";
-      message = canMiss == 0
+      message = canMiss == null
+          ? "Your target is 0%; no minimum attendance is required."
+          : canMiss == 0
           ? "You are currently at the threshold. Try to attend the next classes to create a safety margin."
           : "You can miss $canMiss more ${canMiss == 1 ? "class" : "classes"} before falling below the $threshold% threshold.";
       icon = Icons.verified_rounded;
       color = Colors.green;
     } else {
       title = "Attendance needs attention";
-      message =
-          "You need to attend the next $needed ${needed == 1 ? "class" : "classes"} consecutively to reach the $threshold% threshold.";
+      message = needed == null
+          ? "A 100% target cannot be reached after an absence."
+          : "You need to attend the next $needed ${needed == 1 ? "class" : "classes"} consecutively to reach the $threshold% threshold.";
       icon = Icons.warning_amber_rounded;
       color = Colors.orange;
     }

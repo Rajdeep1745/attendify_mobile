@@ -1,6 +1,6 @@
+import 'api_client.dart';
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants.dart';
@@ -28,7 +28,7 @@ class SubjectService {
       throw Exception('Unsupported user role: $role');
     }
 
-    final response = await http.get(
+    final response = await ApiClient.get(
       Uri.parse(endpoint),
       headers: {'Authorization': 'Bearer $token'},
     );
@@ -59,9 +59,7 @@ class SubjectService {
     // Do not filter or enrich these records using curriculum.json.
     return decoded
         .whereType<Map>()
-        .map(
-          (item) => SubjectModel.fromJson(Map<String, dynamic>.from(item)),
-        )
+        .map((item) => SubjectModel.fromJson(Map<String, dynamic>.from(item)))
         .where((subject) => subject.subjectId.isNotEmpty)
         .toList();
   }

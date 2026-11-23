@@ -20,6 +20,7 @@ class ManualAttendanceScreen extends StatefulWidget {
 
 class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
   List students = [];
+  final date = DateTime.now().toIso8601String().split("T").first;
 
   Map<String, bool> attendanceMap = {};
 
@@ -35,6 +36,13 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
   Future<void> fetchStudents() async {
     try {
       final data = await AttendanceService.fetchStudents(widget.subjectId);
+      final daily = await AttendanceService.getDailyAttendance(
+        widget.subjectId,
+        date,
+      );
+      final existing = {
+        for (final row in daily) row['studentId']: row['present'] == true,
+      };
 
       if (!mounted) return;
 
@@ -42,7 +50,7 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
         students = data;
 
         for (final student in students) {
-          attendanceMap[student['id']] = false;
+          attendanceMap[student['id']] = existing[student['id']] ?? false;
         }
 
         isLoading = false;
@@ -70,7 +78,11 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
         return {"student_id": entry.key, "present": entry.value};
       }).toList();
 
-      await AttendanceService.markManualAttendance(widget.subjectId, records);
+      await AttendanceService.markManualAttendance(
+        widget.subjectId,
+        records,
+        date: date,
+      );
 
       if (!mounted) return;
 

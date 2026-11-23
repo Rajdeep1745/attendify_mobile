@@ -96,7 +96,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return Scaffold(
       backgroundColor: const Color(0xffF6F7FB),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Change Password',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
@@ -185,11 +185,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       () => setState(() => _obscureNew = !_obscureNew),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty)
+                      if (value == null || value.isEmpty) {
                         return 'Enter a new password';
-                      if (value.length < 8) return 'Use at least 8 characters';
-                      if (value == _currentController.text)
+                      }
+                      if (value.length < 8) {
+                        return 'Use at least 8 characters';
+                      }
+                      if (value == _currentController.text) {
                         return 'Choose a password different from the current one';
+                      }
                       return null;
                     },
                   ),

@@ -1,4 +1,5 @@
-// const String baseUrl = "http://192.168.0.103:5000/api"; // Bari wifi
-// const String baseUrl = "http://10.129.36.240:5000/api"; // Phone hotspot
-// const String baseUrl = "http://localhost:5000/api"; // Localhost
-const String baseUrl = "http://10.0.0.110:5000/api"; // College VM
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+// main() loads the bundled .env before the app makes any API requests.
+String get baseUrl =>
+    dotenv.get('API_BASE_URL').trim().replaceFirst(RegExp(r'/+$'), '');

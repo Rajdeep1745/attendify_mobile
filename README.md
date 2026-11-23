@@ -1,84 +1,62 @@
 # Smart Attendance — Flutter app
 
-Flutter client for the Smart Attendance website's shared API. Teachers can browse assigned subjects, mark manual attendance, capture a classroom photo for recognition, review results, and view daily statistics. Students can view enrolled subjects, attendance, reports, and their profile.
+Flutter client for the [website's shared Express/PostgreSQL backend](../attendance-app-cu/README.md). Read [handover.md](handover.md) for architecture and [issue statuses](../attendance-app-cu/ISSUES_REVIEW.md) for deferred work.
 
-Read [handover.md](handover.md) for architecture, file locations, API contracts, and known integration gaps. The [website/backend project](../attendance-app-cu/README.md) contains Express, PostgreSQL, and Python recognition services. This app does not perform recognition on the device. Documentation reflects **23 November 2026**.
+## Current behavior
 
-## Stack
+- Signup is closed. Only administrators issue accounts through the website.
+- Attendance is manual and daily: one record per subject/date. Recognition entry points are hidden; its implementation/issues remain preserved and deferred.
+- Programme, semester, subject and enrollment data come from the backend/database. The old curriculum asset is no longer bundled or read.
+- New accounts use the default password 12345678 and can sign in immediately. Password changes are optional and keep existing sessions signed in.
+- Teacher tabs: Home, Attendance, Subjects, Profile. Student tabs: Home, Attendance, Reports, Profile.
+- Profiles are role-aware; only teachers edit avatars/default thresholds. Student reports use configured DB targets and distinguish overall from selected-subject attendance.
 
-- Flutter / Dart; package name `attendance_app`, version `1.0.0+1`.
-- Dart SDK constraint `^3.11.5`; use a Flutter SDK that includes a compatible Dart version.
-- Material widgets, `http`, `shared_preferences`, `camera`, `image_picker`, `image`, `fl_chart`, and `intl`.
-- Bundled subject catalogue: `assets/curriculum.json`.
+## Setup
 
-## Setup and run
+Use Flutter with Dart compatible with pubspec's `^3.11.5`. Start the sibling API/database, then:
 
-1. Start the backend from the sibling project using its README. PostgreSQL is needed for app data; Python is needed for recognition.
-2. Update [lib/core/constants.dart](lib/core/constants.dart) to the reachable API address. It currently contains a developer-specific LAN address. The value must include `/api` and omit a trailing slash:
-
-   ```dart
-   const String baseUrl = 'http://<backend-host>:5000/api';
-   ```
-
-   A physical phone needs the computer's reachable LAN address, usually on the same Wi-Fi. Android emulator can use `http://10.0.2.2:5000/api`. `localhost` on a phone refers to the phone. Permit port 5000 through the host firewall as appropriate. Verify platform cleartext/HTTPS policy if HTTP requests fail.
-
-3. Install packages and run on a connected device:
-
-   ```powershell
-   flutter pub get
-   flutter devices
-   flutter run -d <device-id>
-   ```
-
-The app has no `.env`, build-flavor, or `--dart-define` API configuration. Change the source constant and rebuild/restart as needed. Keep DB/admin/JWT secrets on the backend.
-
-## App flow
-
-- Splash validates the saved token through `/users/me`, then opens the teacher or student shell.
-- Login persists the JWT and user in SharedPreferences. Network failures can reuse a cached session; 401/403 clears it.
-- Teacher tabs: Home, Attendance, Subjects, Profile. Select a subject to take attendance.
-- Student tabs: Home, Attendance, Reports, Profile. Reports initially show an overview before selecting a subject.
-- Manual attendance submits a real boolean for every enrolled student, using today's device date.
-- Camera capture opens preview, uploads one photo, then shows results/corrections. **The current upload contract is incompatible with the backend; see below.**
-- Profiles support personal detail editing and password changes. Teacher avatar upload is implemented; student avatar upload is rejected by the current backend route.
-
-Admin management and student face registration are available through the website, not through dedicated mobile screens.
-
-## Known integration gaps
-
-| Area | Current issue |
-| --- | --- |
-| Face attendance | Mobile sends multipart `faceMedia`; active backend requires `faceImages`. Recognition cannot work against the reviewed backend until aligned. |
-| Student signup | Mobile omits `program` and `semester`, which the backend requires. Use web signup/admin import meanwhile. |
-| Subjects | The model discards API name/programme data and enriches from the static curriculum asset. Teacher tree excludes IDs absent from that asset, including new database-created subjects. |
-| Results | Backend attendance rows lack names/roll/avatar. ResultScreen fetches a roster map but does not use it to enrich displayed rows. |
-| Profile | Reads `defaultThreshold`, while the backend returns `default_threshold`; shared profile also offers teacher-only avatar behavior to students. |
-
-Face recognition saves attendance immediately on the server; final corrections are a second request. A rerun for the same subject/date replaces previous records. All enrolled students not recognized, including those without face templates, are marked absent until corrected.
-
-## Checks and builds
+Copy [.env.example](.env.example) to .env for a new checkout, then set API_BASE_URL to the reachable backend address. The local .env was created without overwriting existing values. For a physical phone, replace localhost with the server LAN address. Then run:
 
 ```powershell
-flutter analyze
-flutter test
-flutter build apk --release
+flutter pub get
+flutter devices
+flutter run
 ```
 
-The checked-in test is [test/widget_test.dart](test/widget_test.dart), covering splash-to-login with mocked SharedPreferences. It does not cover API, camera, or attendance flows. See the handover for the documentation-review check results; the commands above are not a claim of successful execution.
+`API_BASE_URL` includes `/api` without a trailing slash. It is read from the bundled .env by flutter_dotenv before runApp; restart the app after changing it. No extra command-line flags are required. A physical phone needs a reachable computer LAN address; Android emulator usually uses 10.0.2.2. Phone localhost refers to the phone. Supply HTTPS for production and keep backend secrets off the client.
 
-Android uses Java/Kotlin target 17, AGP 8.11.1, Kotlin 2.2.20, and Gradle 9.1.0. CameraX is deliberately overridden to `0.7.4+8` in `pubspec.yaml`; preserve it unless validating an upgrade. Android release currently uses debug signing and placeholder application ID `com.example.attendance_app`.
+The app has no offline attendance queue. Cached sessions survive a temporary outage, but attendance/API calls still require network. Active JSON calls time out after 30 seconds; teacher avatar uploads after 60 seconds. Authentication failures clear the session and return to login.
 
-Android camera/internet permissions are present. iOS runner configuration lacks camera/photo-library usage descriptions and requires platform validation. Web/desktop scaffold directories exist, but the file-path camera/preview upload flow uses `dart:io`; cross-platform feature support is not established. Test camera behavior on an actual target device.
+## Manual workflow
 
-## Repository map
+1. Receive your account and initial password from the administrator.
+2. Sign in with the administrator-provided password; change it through Profile if desired.
+3. Teachers select an assigned DB subject and open Manual Attendance; existing records for today are loaded before editing.
+4. Submit an explicit present/absent value for every enrolled student. The date stays fixed while editing; the backend commits records and aggregates transactionally.
+5. Students view their attendance, subject history and reports. Matching programme/semester changes re-enroll students, by the chosen policy.
 
-- `lib/main.dart`: app entry and login/signup routes.
-- `lib/core/constants.dart`: API base URL.
-- `lib/screens/`: teacher/student shells, tabs, camera/preview/results, authentication, profile/password screens.
-- `lib/services/`: authentication, profile, attendance, subject, and curriculum API/asset access.
-- `lib/models/`: subject and programme/semester tree models.
-- `assets/`: curriculum and logo.
-- `test/`: existing widget test.
-- Platform directories: native launch/build settings.
+## Checks
 
-The older [docs/APP_GUIDE.md](docs/APP_GUIDE.md) describes obsolete batch files and flows. Use this README and handover as the current reference. No license file or complete release pipeline is present.
+```powershell
+flutter analyze --no-pub
+flutter test --no-pub
+flutter build apk --debug
+```
+
+No new test code was added, as requested. Existing [widget_test.dart](test/widget_test.dart) covers splash-to-login only; run existing checks without implying broader coverage. No physical mobile device was connected during this update. Camera/recognition behavior is deferred.
+
+## Android release identity and signing
+
+The application ID uniquely identifies the installed app/store listing. A release signing key proves that later updates come from the same publisher. Keep that key and its passwords private and backed up.
+
+Development retains the current sample ID; release builds intentionally require your own configuration:
+
+1. Choose a permanent application ID and set `ATTENDIFY_APPLICATION_ID` in private Gradle properties.
+2. Create/provide a release keystore; copy [key.properties.example](android/key.properties.example) to ignored `android/key.properties` and supply its details.
+3. Build release only after identity/signing are configured. Debug signing is no longer silently used for release.
+
+Java/Kotlin target is 17; AGP 8.11.1, Kotlin 2.2.20, Gradle 9.1.0. The CameraX override is retained because recognition is out of scope. iOS gallery purpose text is configured for profile photos; camera recognition permission/device validation remains deferred.
+
+## Code map
+
+`lib/main.dart` handles app startup/navigation and session expiry; `core/constants.dart` defines configurable API origin; `services/` contains API/auth/profile/attendance/subject access; `models/` normalizes subject/tree data; `screens/` contains teacher/student shells, manual attendance, profile/password and retained inactive recognition screens. `docs/archive/curriculum.json` is a historical unbundled file, never an academic source of truth. Platform scaffolds do not establish full camera support on every target.

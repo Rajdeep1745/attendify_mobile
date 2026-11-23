@@ -1,8 +1,6 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'main_shell.dart';
-import 'signup_screen.dart';
 import 'student_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -18,29 +16,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
-  late TapGestureRecognizer signupRecognizer;
-
   bool isLoading = false;
   bool obscurePassword = true;
-
-  @override
-  void initState() {
-    super.initState();
-
-    signupRecognizer = TapGestureRecognizer()
-      ..onTap = () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SignupScreen()),
-        );
-      };
-  }
 
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
-    signupRecognizer.dispose();
     super.dispose();
   }
 
@@ -56,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final result = await AuthService.login(
         email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        password: passwordController.text,
       );
 
       if (!mounted) return;
@@ -270,29 +252,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                           ),
                         ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        style: const TextStyle(
-                          color: Color(0xff666666),
-                          fontSize: 14,
-                        ),
-                        children: [
-                          const TextSpan(text: "Don't have an account? "),
-                          TextSpan(
-                            text: "Sign up",
-                            style: const TextStyle(
-                              color: Color(0xff7b4dff),
-                              fontWeight: FontWeight.w600,
-                            ),
-                            recognizer: signupRecognizer,
-                          ),
-                        ],
                       ),
                     ),
                   ],
