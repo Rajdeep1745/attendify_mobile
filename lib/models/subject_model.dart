@@ -1,13 +1,8 @@
 class SubjectModel {
-  // Backend identity
   final String subjectId;
-
-  // Curriculum information
   final String name;
   final String programme;
   final int semester;
-
-  // Backend information
   final int threshold;
   final int totalStudents;
 
@@ -20,40 +15,25 @@ class SubjectModel {
     required this.totalStudents,
   });
 
-  factory SubjectModel.fromJson(Map<String, dynamic> json) {
-    return SubjectModel(
-      subjectId:
-          json["subject_id"]?.toString() ?? json["subjectId"]?.toString() ?? "",
-
-      // Filled later from curriculum.json.
-      name: "",
-      programme: "",
-      semester: 0,
-
-      threshold: int.tryParse(json["threshold"]?.toString() ?? "") ?? 75,
-
-      totalStudents:
-          int.tryParse(
-            json["total_students"]?.toString() ??
-                json["totalStudents"]?.toString() ??
-                "",
-          ) ??
-          0,
-    );
+  static int _readInt(dynamic value, {required int fallback}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
   }
 
-  SubjectModel withCurriculum({
-    required String name,
-    required String programme,
-    required int semester,
-  }) {
+  factory SubjectModel.fromJson(Map<String, dynamic> json) {
     return SubjectModel(
-      subjectId: subjectId,
-      name: name,
-      programme: programme,
-      semester: semester,
-      threshold: threshold,
-      totalStudents: totalStudents,
+      subjectId: (json['subject_id'] ?? json['subjectId'] ?? '').toString(),
+      // Teacher API returns `name`; student API returns `name` as well.
+      // Keep compatibility with `subject_name` if an older endpoint returns it.
+      name: (json['name'] ?? json['subject_name'] ?? '').toString().trim(),
+      programme: (json['program'] ?? json['programme'] ?? '').toString().trim(),
+      semester: _readInt(json['semester'], fallback: 0),
+      threshold: _readInt(json['threshold'], fallback: 75),
+      totalStudents: _readInt(
+        json['total_students'] ?? json['totalStudents'],
+        fallback: 0,
+      ),
     );
   }
 }
