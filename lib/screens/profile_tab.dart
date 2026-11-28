@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../services/profile_service.dart';
+import '../widgets/app_loading_view.dart';
 import 'change_password_screen.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -17,6 +18,7 @@ class _ProfileTabState extends State<ProfileTab> {
   final nameController = TextEditingController();
 
   final deptController = TextEditingController();
+  final institutionController = TextEditingController();
 
   String role = "student";
   String email = "";
@@ -26,6 +28,9 @@ class _ProfileTabState extends State<ProfileTab> {
 
   bool isLoading = true;
   bool isSaving = false;
+  bool _photoPickerOpen = false;
+  String savingMessage = 'Saving profile…';
+  String? profileError;
 
   @override
   void initState() {
@@ -37,28 +42,26 @@ class _ProfileTabState extends State<ProfileTab> {
   void dispose() {
     nameController.dispose();
     deptController.dispose();
+    institutionController.dispose();
     super.dispose();
   }
 
   Future<void> _changeProfilePhoto() async {
-    final picker = ImagePicker();
-
-    final image = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1200,
-    );
-
-    if (image == null) return;
-
-    if (!mounted) return;
-
-    setState(() {
-      isSaving = true;
-    });
-
+    if (isSaving || _photoPickerOpen) return;
+    _photoPickerOpen = true;
+    MinimumLoadingTimer? loadingTimer;
     try {
+      final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (image == null || !mounted) return;
+
+      loadingTimer = MinimumLoadingTimer();
+      setState(() {
+        isSaving = true;
+        savingMessage = 'Uploading profile photo…';
+      });
+
       final newAvatar = await ProfileService.updateAvatar(image);
+      await loadingTimer.wait();
 
       if (!mounted) return;
 
@@ -98,6 +101,8 @@ class _ProfileTabState extends State<ProfileTab> {
         ),
       );
     } finally {
+      _photoPickerOpen = false;
+      await loadingTimer?.wait();
       if (mounted) {
         setState(() {
           isSaving = false;
@@ -107,8 +112,15 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   Future<void> loadProfile() async {
+    final loadingTimer = MinimumLoadingTimer();
+    setState(() {
+      isLoading = true;
+      profileError = null;
+    });
+
     try {
       final data = await ProfileService.getProfile();
+      await loadingTimer.wait();
 
       if (!mounted) return;
 
@@ -116,6 +128,7 @@ class _ProfileTabState extends State<ProfileTab> {
         nameController.text = data["name"] ?? "";
 
         deptController.text = data["department"] ?? "";
+        institutionController.text = data["institution"] ?? "";
 
         role = data["role"]?.toString() ?? "student";
         email = data["email"] ?? "";
@@ -129,36 +142,46 @@ class _ProfileTabState extends State<ProfileTab> {
             : double.tryParse(value?.toString() ?? "") ?? 75;
 
         isLoading = false;
+        profileError = null;
       });
     } catch (e) {
+      await loadingTimer.wait();
       debugPrint("PROFILE LOAD ERROR: $e");
 
       if (!mounted) return;
 
       setState(() {
-        nameController.text = "";
-        deptController.text = "";
-        email = "";
-        avatarUrl = "";
-        threshold = 75;
         isLoading = false;
+        profileError = 'Unable to load your profile.';
       });
     }
   }
 
   Future<void> saveProfile() async {
+    if (isSaving || _photoPickerOpen) return;
     FocusScope.of(context).unfocus();
 
+    if (institutionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Institution is required')));
+      return;
+    }
+
+    final loadingTimer = MinimumLoadingTimer();
     setState(() {
       isSaving = true;
+      savingMessage = 'Saving profile…';
     });
 
     try {
       await ProfileService.updateProfile(
         name: nameController.text.trim(),
         department: deptController.text.trim(),
+        institution: institutionController.text.trim(),
         threshold: role == "teacher" ? threshold.toInt() : null,
       );
+      await loadingTimer.wait();
 
       if (!mounted) return;
 
@@ -179,6 +202,7 @@ class _ProfileTabState extends State<ProfileTab> {
         ),
       );
     } catch (e) {
+      await loadingTimer.wait();
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -188,13 +212,7 @@ class _ProfileTabState extends State<ProfileTab> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          content: const Row(
-            children: [
-              Icon(Icons.error_rounded, color: Colors.white),
-              SizedBox(width: 10),
-              Text("Failed to update profile"),
-            ],
-          ),
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
         ),
       );
     } finally {
@@ -225,65 +243,91 @@ class _ProfileTabState extends State<ProfileTab> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.deepPurple),
+      return const AppLoadingView(message: 'Loading your profile…');
+    }
+
+    if (profileError != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(profileError!),
+            TextButton(onPressed: loadProfile, child: const Text('Retry')),
+          ],
+        ),
       );
     }
 
-    return RefreshIndicator(
-      color: Colors.deepPurple,
-      onRefresh: loadProfile,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
-        children: [
-          _profileHeader(),
+    return Stack(
+      children: [
+        RefreshIndicator(
+          color: Colors.deepPurple,
+          onRefresh: loadProfile,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
+            children: [
+              _profileHeader(),
 
-          const SizedBox(height: 22),
+              const SizedBox(height: 22),
 
-          _sectionTitle("Personal Information"),
+              _sectionTitle("Personal Information"),
 
-          const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-          _inputCard(
-            label: "Full Name",
-            controller: nameController,
-            icon: Icons.person_outline_rounded,
+              _inputCard(
+                label: "Full Name",
+                controller: nameController,
+                icon: Icons.person_outline_rounded,
+              ),
+
+              const SizedBox(height: 12),
+
+              _inputCard(
+                label: "Department",
+                controller: deptController,
+                icon: Icons.account_balance_outlined,
+              ),
+
+              const SizedBox(height: 12),
+
+              _inputCard(
+                label: 'Institution',
+                controller: institutionController,
+                icon: Icons.school_outlined,
+              ),
+
+              const SizedBox(height: 12),
+
+              _emailCard(),
+
+              const SizedBox(height: 22),
+
+              _sectionTitle("Security"),
+
+              const SizedBox(height: 12),
+
+              _changePasswordCard(),
+
+              const SizedBox(height: 22),
+
+              if (role == "teacher") _sectionTitle("Attendance Preferences"),
+
+              const SizedBox(height: 12),
+
+              if (role == "teacher") _thresholdCard(),
+
+              const SizedBox(height: 24),
+
+              _saveButton(),
+            ],
           ),
-
-          const SizedBox(height: 12),
-
-          _inputCard(
-            label: "Department",
-            controller: deptController,
-            icon: Icons.account_balance_outlined,
+        ),
+        if (isSaving)
+          Positioned.fill(
+            child: AppLoadingView(message: savingMessage, overlay: true),
           ),
-
-          const SizedBox(height: 12),
-
-          _emailCard(),
-
-          const SizedBox(height: 22),
-
-          _sectionTitle("Security"),
-
-          const SizedBox(height: 12),
-
-          _changePasswordCard(),
-
-          const SizedBox(height: 22),
-
-          if (role == "teacher") _sectionTitle("Attendance Preferences"),
-
-          const SizedBox(height: 12),
-
-          if (role == "teacher") _thresholdCard(),
-
-          const SizedBox(height: 24),
-
-          _saveButton(),
-        ],
-      ),
+      ],
     );
   }
 
@@ -312,32 +356,34 @@ class _ProfileTabState extends State<ProfileTab> {
       child: Column(
         children: [
           // Larger profile image
-          GestureDetector(
-            onTap: isSaving || role != "teacher" ? null : _changeProfilePhoto,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
+          Semantics(
+            button: true,
+            label: 'Change profile photo',
+            child: GestureDetector(
+              onTap: isSaving ? null : _changeProfilePhoto,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 60,
+                      backgroundColor: Colors.white,
+                      child: ClipOval(child: _buildAvatar(avatarUrl)),
+                    ),
                   ),
-                  child: CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Colors.white,
-                    child: ClipOval(child: _buildAvatar(avatarUrl)),
-                  ),
-                ),
 
-                if (role == "teacher")
                   Positioned(
                     right: 2,
                     bottom: 2,
@@ -362,23 +408,8 @@ class _ProfileTabState extends State<ProfileTab> {
                       ),
                     ),
                   ),
-
-                if (isSaving)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.black.withValues(alpha: 0.35),
-                      ),
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2.5,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
 
@@ -743,14 +774,7 @@ class _ProfileTabState extends State<ProfileTab> {
           ),
         ),
         child: isSaving
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2.2,
-                ),
-              )
+            ? const Text('Saving…')
             : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

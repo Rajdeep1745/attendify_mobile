@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../widgets/app_loading_view.dart';
 
 import 'main_shell.dart';
 import 'student_shell.dart';
@@ -22,6 +23,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkLogin() async {
+    final loadingTimer = MinimumLoadingTimer();
     // ---------------------------------------------------------
     // Check whether the saved token is actually valid.
     //
@@ -30,8 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
     final user = await AuthService.validateSession();
 
-    // Small splash delay.
-    await Future.delayed(const Duration(milliseconds: 500));
+    await loadingTimer.wait();
 
     if (!mounted) return;
 
@@ -99,25 +100,7 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       backgroundColor: const Color(0xfff4f6fb),
 
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.school, size: 72, color: Color(0xff7b4dff)),
-
-            SizedBox(height: 18),
-
-            Text(
-              "Smart Attendance",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
-            ),
-
-            SizedBox(height: 24),
-
-            CircularProgressIndicator(),
-          ],
-        ),
-      ),
+      body: const AppLoadingView(message: 'Checking your session…'),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/subject_model.dart';
 import '../services/attendance_service.dart';
+import '../widgets/app_loading_view.dart';
 
 class AttendanceTab extends StatefulWidget {
   final SubjectModel? selectedSubject;
@@ -60,6 +61,7 @@ class _AttendanceTabState extends State<AttendanceTab> {
         isLoading = true;
       });
     }
+    final loadingTimer = MinimumLoadingTimer();
 
     try {
       final subjectId = subject.subjectId;
@@ -103,6 +105,7 @@ class _AttendanceTabState extends State<AttendanceTab> {
       });
     }
 
+    await loadingTimer.wait();
     if (!mounted) return;
 
     setState(() {
@@ -189,6 +192,10 @@ class _AttendanceTabState extends State<AttendanceTab> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const AppLoadingView(message: 'Loading attendance records…');
+    }
+
     if (widget.selectedSubject == null) {
       return const Center(
         child: Text("Please select a subject", style: TextStyle(fontSize: 16)),
@@ -230,9 +237,7 @@ class _AttendanceTabState extends State<AttendanceTab> {
 
           const SizedBox(height: 14),
 
-          if (isLoading)
-            _loadingCard()
-          else if (students.isEmpty)
+          if (students.isEmpty)
             _emptyCard(
               "No attendance found for this date.",
               icon: Icons.event_busy_rounded,
@@ -575,10 +580,6 @@ class _AttendanceTabState extends State<AttendanceTab> {
   // =========================================================
 
   Widget _absenteesCard() {
-    if (isLoading && absentees.isEmpty) {
-      return _loadingCard();
-    }
-
     if (absentees.isEmpty) {
       return _emptyCard(
         "No frequent absentees yet.",
@@ -816,18 +817,6 @@ class _AttendanceTabState extends State<AttendanceTab> {
   // =========================================================
   // EMPTY / LOADING
   // =========================================================
-
-  Widget _loadingCard() {
-    return Container(
-      height: 110,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const CircularProgressIndicator(color: Colors.deepPurple),
-    );
-  }
 
   Widget _emptyCard(String message, {IconData? icon}) {
     return Container(

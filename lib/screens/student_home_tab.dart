@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/subject_model.dart';
 import '../services/attendance_service.dart';
 import '../services/profile_service.dart';
+import '../widgets/app_loading_view.dart';
 
 class StudentHomeTab extends StatefulWidget {
   final List<SubjectModel> subjects;
@@ -39,6 +40,7 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
   Future<void> _loadData() async {
     if (!mounted) return;
 
+    final loadingTimer = MinimumLoadingTimer();
     setState(() {
       isLoading = true;
     });
@@ -72,6 +74,7 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
         today,
       );
 
+      await loadingTimer.wait();
       if (!mounted) return;
 
       setState(() {
@@ -85,6 +88,7 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
     } catch (e) {
       debugPrint("STUDENT HOME ERROR: $e");
 
+      await loadingTimer.wait();
       if (!mounted) return;
 
       setState(() {
@@ -113,6 +117,10 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const AppLoadingView(message: 'Loading your attendance…');
+    }
+
     return RefreshIndicator(
       color: Colors.deepPurple,
       onRefresh: _loadData,
@@ -132,9 +140,7 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
 
           const SizedBox(height: 12),
 
-          if (isLoading)
-            _loadingCard()
-          else if (todayAttendance.isEmpty)
+          if (todayAttendance.isEmpty)
             _emptyCard()
           else
             ...todayAttendance.map(_todayTile),
@@ -154,11 +160,6 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
             fontWeight: FontWeight.bold,
             letterSpacing: -0.6,
           ),
-        ),
-        SizedBox(height: 5),
-        Text(
-          "Here's your attendance overview.",
-          style: TextStyle(color: Color(0xff666666), fontSize: 14),
         ),
       ],
     );
@@ -335,19 +336,6 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
     return Text(
       title,
       style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
-    );
-  }
-
-  Widget _loadingCard() {
-    return Container(
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Center(
-        child: CircularProgressIndicator(color: Colors.deepPurple),
-      ),
     );
   }
 

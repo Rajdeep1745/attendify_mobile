@@ -176,7 +176,7 @@ class AttendanceService {
     final token = await _token();
 
     final res = await ApiClient.get(
-      Uri.parse("$baseUrl/students/$subjectId"),
+      Uri.parse("$baseUrl/students/${Uri.encodeComponent(subjectId)}"),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",

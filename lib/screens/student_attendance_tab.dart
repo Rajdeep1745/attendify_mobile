@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/subject_model.dart';
 import '../services/attendance_service.dart';
+import '../widgets/app_loading_view.dart';
 
 class StudentAttendanceTab extends StatefulWidget {
   final List<SubjectModel> subjects;
@@ -14,6 +15,7 @@ class StudentAttendanceTab extends StatefulWidget {
 
 class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
   bool isLoading = true;
+  bool _openingSubject = false;
 
   final Map<String, Map<String, dynamic>> subjectData = {};
 
@@ -39,6 +41,7 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
   Future<void> _loadAttendance() async {
     if (!mounted) return;
 
+    final loadingTimer = MinimumLoadingTimer();
     setState(() {
       isLoading = true;
       subjectData.clear();
@@ -63,6 +66,7 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
       }
     }
 
+    await loadingTimer.wait();
     if (!mounted) return;
 
     setState(() {
@@ -91,13 +95,19 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
   // OPEN SUBJECT
   // =========================================================
 
-  void _openSubject(SubjectModel subject) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => StudentSubjectAttendanceScreen(subject: subject),
-      ),
-    );
+  Future<void> _openSubject(SubjectModel subject) async {
+    if (_openingSubject) return;
+    _openingSubject = true;
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => StudentSubjectAttendanceScreen(subject: subject),
+        ),
+      );
+    } finally {
+      _openingSubject = false;
+    }
   }
 
   // =========================================================
@@ -106,6 +116,10 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const AppLoadingView(message: 'Loading your subjects…');
+    }
+
     return RefreshIndicator(
       color: Colors.deepPurple,
 
@@ -391,6 +405,7 @@ class _StudentSubjectAttendanceScreenState
   Future<void> _load() async {
     if (!mounted) return;
 
+    final loadingTimer = MinimumLoadingTimer();
     setState(() {
       isLoading = true;
     });
@@ -400,6 +415,7 @@ class _StudentSubjectAttendanceScreenState
         widget.subject.subjectId,
       );
 
+      await loadingTimer.wait();
       if (!mounted) return;
 
       setState(() {
@@ -409,6 +425,7 @@ class _StudentSubjectAttendanceScreenState
     } catch (e) {
       debugPrint("SUBJECT ATTENDANCE DETAIL ERROR: $e");
 
+      await loadingTimer.wait();
       if (!mounted) return;
 
       setState(() {
@@ -495,9 +512,7 @@ class _StudentSubjectAttendanceScreenState
       ),
 
       body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.deepPurple),
-            )
+          ? const AppLoadingView(message: 'Loading subject attendance…')
           : RefreshIndicator(
               color: Colors.deepPurple,
 

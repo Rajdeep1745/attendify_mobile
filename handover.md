@@ -1,5 +1,15 @@
 # Smart Attendance — mobile handover
 
+## Network/security update (2026-11-28)
+
+Android debug builds now allow HTTP for testing on the college LAN. Release builds require the bundled `API_BASE_URL` to use HTTPS, along with the existing permanent app ID and signing key requirements. See the sibling [network deployment guide](../attendance-app-cu/docs/network-deployment.md). New backend imports continue to use the shared initial password `12345678`. Students and teachers can upload profile photos from the mobile Profile tab. Selecting a teacher subject opens its enrolled student list; the teacher dashboard shows total students, classes held, and today's present and absent counts.
+
+Manual attendance no longer shows present/absent/total counters. Saving reloads that day's server records, closes the page, and refreshes teacher Home and Attendance; active loading and saving use `AppLoadingView` with the actual Attendify logo. Profile has an editable required Institution field, and its info button shows aligned developer contacts and one bug-report `mailto` action addressed to both developers through `url_launcher`. Photo upload reads the saved avatar back from `/users/me`; the backend must be redeployed for student uploads to work on the VM. Existing database rows with blank institution need their real institution supplied when their profile is next saved; no value was invented for them.
+
+Mobile write handlers now return immediately while their previous request is active. The profile photo picker and subject-page navigation also have synchronous guards against repeated taps. Existing loading feedback remains visible during requests.
+
+Active loading flows now remain visible for at least one second. The loading logo has its own unambiguous asset key, `assets/attendify_loading_logo.png`; a fresh APK includes it, while hot reload cannot repair an older installed asset bundle. The loading widget also has a branded fallback if an asset cannot load.
+
 ## Current scope and rules
 
 The app uses the sibling [Express/PostgreSQL backend](../attendance-app-cu/handover.md). Public signup is closed; only admin-issued accounts can log in. Attendance is manual and daily, one subject/date record. Programme/semester metadata comes from database responses. Matching academic changes re-enroll students, including previous admin removals. Face-recognition screens/services are retained but hidden and their issues remain deferred in [ISSUES_REVIEW.md](../attendance-app-cu/ISSUES_REVIEW.md).
@@ -22,7 +32,7 @@ screens → services → ApiClient/http + JWT → Express /api
 SharedPreferences → token/name/role/serialized user
 ```
 
-Dependencies remain http/http_parser, shared_preferences, camera, image_picker/image, fl_chart and intl. flutter_dotenv 6.0.1 was added for automatic .env loading. The camera_android_camerax override remains unchanged. JSON clients share 30-second timeouts and 401 handling; multipart teacher avatar upload has a 60-second timeout. Recognition multipart behavior is intentionally unchanged.
+Dependencies include http/http_parser, shared_preferences, camera, image_picker/image, fl_chart, intl, flutter_dotenv and url_launcher. The camera_android_camerax override remains unchanged. JSON clients share 30-second timeouts and 401 handling; multipart avatar upload has a 60-second timeout. Recognition multipart behavior is intentionally unchanged.
 
 ## Files and feature map
 
@@ -38,7 +48,7 @@ Dependencies remain http/http_parser, shared_preferences, camera, image_picker/i
 | lib/services/curriculum_service.dart                                    | Compatibility tree data from API subjects, not asset files                                         |
 | lib/models/curriculum_model.dart, subject_tree_model.dart               | Programme/semester/subject node types                                                              |
 | lib/services/attendance_service.dart                                    | Stats/daily/roster/manual marking/threshold/student reports; retained inactive recognition helpers |
-| lib/services/profile_service.dart                                       | Profile/password and teacher avatar; accepts backend default_threshold                             |
+| lib/services/profile_service.dart                                       | Profile/password and student/teacher avatar; accepts backend default_threshold                     |
 | lib/screens/splash_screen.dart                                          | Validate cached session and route directly by role                                                 |
 | lib/screens/login_screen.dart                                           | Admin-issued login; password text preserved; no signup link                                        |
 | lib/screens/main_shell.dart                                             | Teacher tabs/selected subject; resume session validation                                           |
@@ -50,7 +60,8 @@ Dependencies remain http/http_parser, shared_preferences, camera, image_picker/i
 | lib/screens/student_home_tab.dart                                       | Overall percentage, weighted DB attendance_target, today's statuses                                |
 | lib/screens/student_attendance_tab.dart                                 | Subject percentage/target and subject history detail                                               |
 | lib/screens/student_reports_tab.dart                                    | Overview-first reports, selected subject, explicit impossible/unlimited projections                |
-| lib/screens/profile_tab.dart                                            | Role-aware profile; teacher avatar/preferences; corrected default_threshold and zero handling      |
+| lib/screens/profile_tab.dart                                            | Role-aware profile; student/teacher avatar, teacher preferences and threshold handling             |
+| lib/widgets/app_loading_view.dart, profile_info_button.dart            | Shared branded loading state and profile developer/bug-report menu                                  |
 | lib/screens/change_password_screen.dart                                 | Optional profile action; successful change returns to Profile and keeps the session                |
 | lib/screens/camera_screen.dart, preview_screen.dart, result_screen.dart | Retained inactive recognition flow; do not repair without authorization                            |
 | test/widget_test.dart                                                   | Existing mocked-preference splash/login check; unchanged                                           |
@@ -79,9 +90,9 @@ baseUrl includes /api and omits trailing slash. Bearer JWT is required for prote
 | POST /auth/login                          | email/password → token,user                                                                                    |
 | POST /auth/signup                         | Always 403; mobile helper does not call it                                                                     |
 | GET /users/me                             | Flat role profile; default_threshold for teacher; attendance_percentage and attendance_target for student      |
-| PATCH /users/me                           | name/department; teacher defaultThreshold in request is camelCase                                              |
+| PATCH /users/me                           | name/department/institution (nonblank institution required); teacher defaultThreshold is camelCase             |
 | PATCH /users/me/password                  | currentPassword,newPassword; 8–128 chars, different; preserves existing sessions                               |
-| PATCH /users/me/avatar                    | Teacher-only multipart avatar JPEG; ≤5 MiB server limit                                                        |
+| PATCH /users/me/avatar                    | Student/teacher multipart avatar JPEG; no profile photo file size check                                         |
 | GET /subject/teacher or /subject/student  | Assigned/enrolled DB subjects with identity, name, programme/semester, threshold/count                         |
 | PATCH /subject/:id/threshold              | Integer threshold 0–100                                                                                        |
 | GET /students/:id                         | Roster id/name/roll/avatar/attendance; contacts returned to teachers only                                      |
@@ -100,7 +111,9 @@ Manual saving loads today's current records first and keeps that date stable whi
 
 Subject visual status uses its DB threshold. Overall target is weighted by recorded subject attendance rows, falling back to enrolled DB subject thresholds when no records exist; it is returned by /users/me as attendance_target. Overall percentage and subject-specific percentage are never interchangeable.
 
-Teacher profile reads default_threshold and exposes only teacher avatar/default-threshold actions; student uses generic labels and does not call the teacher-only avatar route. ProfileService converts selected images to JPEG; profile/manual screens handle data and remote avatars. Recognition result-screen avatar issues remain deferred.
+Teacher profile reads default_threshold and exposes default-threshold actions. Students and teachers can upload avatars through the same profile route. ProfileService converts selected images to JPEG; profile/manual screens handle data and remote avatars. Recognition result-screen avatar issues remain deferred.
+
+Profile Institution is editable and required on save. The backend also requires it on profile update and admin import/update; new schemas enforce nonblank institution. Existing databases need real values for legacy blank rows before a database-wide NOT NULL constraint can be safely added. The avatar endpoint stores a data URL in `users.avatar`; the client refetches `/users/me` before showing success. Mobile selects the original gallery file and normalizes it to a JPEG of at most 600 pixels on the longest side before upload, using Flutter's image decoder for formats the Dart decoder cannot read. The profile upload route has no file size check. A 403 displays the server's permission error. The profile info menu lists Jinea Saha and Rajdeep Sarkar with email/phone and opens either a bug report or feature request email addressed to both through the device mail app. Visible mobile branding and Android/iOS display names are Attendify; internal package identifiers remain stable.
 
 Report classes-needed projection returns an explicit impossible state for 100% after an absence. A 0% target has no minimum-attendance requirement instead of a fabricated 999-class allowance. Keep the overview-first report behavior when modifying selectors.
 
@@ -110,11 +123,11 @@ Home no longer opens camera. The old camera→preview→result flow is retained.
 
 ## Configuration and release
 
-Set API_BASE_URL=http://<reachable-host>:5000/api in .env for a device; use HTTPS in production. Physical phone localhost means the phone; emulator can use 10.0.2.2. There are no client DB/admin secrets. Its ignored .env is bundled as an asset and loaded by flutter_dotenv before runApp. Use plain flutter run; keep backend secrets on the server. For Flutter web preview at localhost:8080, the default development API CORS allowlist permits that origin.
+Set API_BASE_URL=http://<reachable-host>:5000/api in .env for a device; use HTTPS in production. Physical phone localhost means the phone; emulator can use 10.0.2.2. There are no client DB/admin secrets. Its ignored .env is bundled as an asset and loaded by flutter_dotenv before runApp. Use plain flutter run; keep backend secrets on the server. The API no longer restricts browser origins for Flutter web previews.
 
 Android debug builds keep the existing sample identity. Release now requires ATTENDIFY_APPLICATION_ID in private Gradle properties and android/key.properties with a real keystore; see android/key.properties.example. No real signing key or permanent identity was invented. Key files are ignored. Java/Kotlin 17, AGP 8.11.1, Kotlin 2.2.20 and Gradle 9.1.0 remain unchanged.
 
-iOS gallery usage text is present for profile photos. Camera permission/platform recognition validation remains deferred. No physical mobile device was connected during this task; web/desktop previews are not substitutes for device acceptance before release.
+iOS gallery usage text is present for profile photos. Camera permission/platform recognition validation remains deferred. The latest Android debug APK built successfully; authenticated photo and attendance flows still need acceptance on a device connected to the deployed VM.
 
 ## Next-agent workflow and checks
 

@@ -23,7 +23,7 @@ class AttendanceApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      title: 'Smart Attendance',
+      title: 'Attendify',
 
       home: const SplashScreen(),
 

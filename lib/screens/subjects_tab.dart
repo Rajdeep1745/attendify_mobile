@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/subject_model.dart';
 import '../models/subject_tree_model.dart';
 import '../services/subject_tree_service.dart';
+import '../widgets/app_loading_view.dart';
+import 'subject_students_screen.dart';
 
 class SubjectsTab extends StatefulWidget {
   final List<SubjectModel> subjects;
@@ -24,12 +26,13 @@ class SubjectsTab extends StatefulWidget {
 
 class _SubjectsTabState extends State<SubjectsTab> {
   late Future<List<ProgrammeTreeNode>> _treeFuture;
+  bool _openingSubject = false;
 
   @override
   void initState() {
     super.initState();
 
-    _treeFuture = SubjectTreeService.loadTree();
+    _treeFuture = withMinimumLoading(SubjectTreeService.loadTree());
   }
 
   @override
@@ -37,7 +40,7 @@ class _SubjectsTabState extends State<SubjectsTab> {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.subjects != widget.subjects) {
-      _treeFuture = SubjectTreeService.loadTree();
+      _treeFuture = withMinimumLoading(SubjectTreeService.loadTree());
     }
   }
 
@@ -47,8 +50,23 @@ class _SubjectsTabState extends State<SubjectsTab> {
     if (!mounted) return;
 
     setState(() {
-      _treeFuture = SubjectTreeService.loadTree();
+      _treeFuture = withMinimumLoading(SubjectTreeService.loadTree());
     });
+  }
+
+  Future<void> _openSubject(SubjectModel? subject) async {
+    if (subject == null || _openingSubject) return;
+    _openingSubject = true;
+    try {
+      widget.onSelect(subject);
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SubjectStudentsScreen(subject: subject),
+        ),
+      );
+    } finally {
+      _openingSubject = false;
+    }
   }
 
   @override
@@ -60,9 +78,7 @@ class _SubjectsTabState extends State<SubjectsTab> {
         future: _treeFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Colors.deepPurple),
-            );
+            return const AppLoadingView(message: 'Loading your subjects…');
           }
 
           if (snapshot.hasError) {
@@ -88,7 +104,7 @@ class _SubjectsTabState extends State<SubjectsTab> {
                   programme: programme,
                   availableSubjects: widget.subjects,
                   selectedSubject: widget.selectedSubject,
-                  onSelect: widget.onSelect,
+                  onSelect: _openSubject,
                 ),
               ),
             ],
@@ -118,7 +134,7 @@ class _SubjectsTabState extends State<SubjectsTab> {
         const SizedBox(height: 5),
 
         Text(
-          "Select a subject to manage its attendance.",
+          "Choose a subject to view its enrolled students.",
           style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
         ),
 
@@ -164,7 +180,7 @@ class _SubjectsTabState extends State<SubjectsTab> {
                     const SizedBox(height: 2),
 
                     Text(
-                      "Tap a subject to make it active",
+                      "Tap a subject to open its student list",
                       style: TextStyle(
                         color: Colors.grey.shade500,
                         fontSize: 11.5,

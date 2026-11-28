@@ -25,6 +25,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
   bool loading = false;
 
   Future<void> uploadImage() async {
+    if (loading) return;
     try {
       setState(() {
         loading = true;

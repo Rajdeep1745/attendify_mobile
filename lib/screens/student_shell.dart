@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../widgets/profile_info_button.dart';
+import '../widgets/app_loading_view.dart';
 import '../services/auth_service.dart';
 
 import '../models/subject_model.dart';
@@ -55,6 +57,7 @@ class _StudentShellState extends State<StudentShell>
   }
 
   Future<void> loadSubjects() async {
+    final loadingTimer = MinimumLoadingTimer();
     if (mounted) {
       setState(() {
         isLoading = true;
@@ -63,6 +66,7 @@ class _StudentShellState extends State<StudentShell>
 
     try {
       final data = await SubjectService.getSubjects();
+      await loadingTimer.wait();
 
       if (!mounted) return;
 
@@ -71,6 +75,7 @@ class _StudentShellState extends State<StudentShell>
         isLoading = false;
       });
     } catch (e) {
+      await loadingTimer.wait();
       if (!mounted) return;
 
       setState(() {
@@ -140,6 +145,7 @@ class _StudentShellState extends State<StudentShell>
         ),
 
         actions: [
+          if (currentIndex == 3) const ProfileInfoButton(),
           if (currentIndex == 3)
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -152,9 +158,7 @@ class _StudentShellState extends State<StudentShell>
       ),
 
       body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.deepPurple),
-            )
+          ? const AppLoadingView(message: 'Loading your subjects…')
           : IndexedStack(
               index: currentIndex,
               children: [

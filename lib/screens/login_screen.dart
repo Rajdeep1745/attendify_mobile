@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'main_shell.dart';
 import 'student_shell.dart';
+import '../widgets/app_loading_view.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -27,10 +28,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> loginUser() async {
+    if (isLoading) return;
     FocusScope.of(context).unfocus();
 
     if (!formKey.currentState!.validate()) return;
 
+    final loadingTimer = MinimumLoadingTimer();
     setState(() {
       isLoading = true;
     });
@@ -40,6 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: emailController.text.trim(),
         password: passwordController.text,
       );
+      await loadingTimer.wait();
 
       if (!mounted) return;
 
@@ -63,6 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
         showSnack(result["message"] ?? "Login failed");
       }
     } catch (e) {
+      await loadingTimer.wait();
       debugPrint("LOGIN ERROR: $e");
       showSnack(e.toString());
     } finally {
@@ -111,155 +116,165 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: const Color(0xfff4f6fb),
 
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(18),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(18),
 
-            child: Container(
-              width: 380,
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 36),
-
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 35,
-                    offset: const Offset(0, 15),
+                child: Container(
+                  width: 380,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 36,
                   ),
-                ],
-              ),
 
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      "Login",
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xff2c2c2c),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 35,
+                        offset: const Offset(0, 15),
                       ),
-                    ),
+                    ],
+                  ),
 
-                    const SizedBox(height: 8),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          "Login",
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xff2c2c2c),
+                          ),
+                        ),
 
-                    const Text(
-                      "Smart Attendance System",
-                      style: TextStyle(fontSize: 14, color: Color(0xff777777)),
-                    ),
+                        const SizedBox(height: 8),
 
-                    const SizedBox(height: 26),
+                        const Text(
+                          "Attendify",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xff777777),
+                          ),
+                        ),
 
-                    TextFormField(
-                      controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: inputDecoration(hint: "Email"),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return "Enter email";
-                        }
+                        const SizedBox(height: 26),
 
-                        if (!value.contains("@")) {
-                          return "Enter valid email";
-                        }
+                        TextFormField(
+                          controller: emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: inputDecoration(hint: "Email"),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return "Enter email";
+                            }
 
-                        return null;
-                      },
-                    ),
+                            if (!value.contains("@")) {
+                              return "Enter valid email";
+                            }
 
-                    const SizedBox(height: 16),
-
-                    TextFormField(
-                      controller: passwordController,
-                      obscureText: obscurePassword,
-                      decoration: inputDecoration(
-                        hint: "Password",
-                        suffixIcon: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              obscurePassword = !obscurePassword;
-                            });
+                            return null;
                           },
-                          icon: Icon(
-                            obscurePassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                          ),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return "Enter password";
-                        }
-
-                        if (value.length < 6) {
-                          return "Minimum 6 characters";
-                        }
-
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-
-                      child: ElevatedButton(
-                        onPressed: isLoading ? null : loginUser,
-
-                        style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
                         ),
 
-                        child: Ink(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xff7b4dff), Color(0xff6a3df0)],
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: passwordController,
+                          obscureText: obscurePassword,
+                          decoration: inputDecoration(
+                            hint: "Password",
+                            suffixIcon: IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  obscurePassword = !obscurePassword;
+                                });
+                              },
+                              icon: Icon(
+                                obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
                             ),
                           ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return "Enter password";
+                            }
 
-                          child: Container(
-                            alignment: Alignment.center,
+                            if (value.length < 6) {
+                              return "Minimum 6 characters";
+                            }
 
-                            child: isLoading
-                                ? const SizedBox(
-                                    height: 22,
-                                    width: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.4,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text(
-                                    "Login",
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                            return null;
+                          },
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+
+                          child: ElevatedButton(
+                            onPressed: isLoading ? null : loginUser,
+
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+
+                            child: Ink(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xff7b4dff),
+                                    Color(0xff6a3df0),
+                                  ],
+                                ),
+                              ),
+
+                              child: Container(
+                                alignment: Alignment.center,
+
+                                child: isLoading
+                                    ? const Text('Signing in…')
+                                    : const Text(
+                                        "Login",
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+          if (isLoading)
+            const Positioned.fill(
+              child: AppLoadingView(message: 'Signing in…', overlay: true),
+            ),
+        ],
       ),
     );
   }

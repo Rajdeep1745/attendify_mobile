@@ -7,15 +7,16 @@ Flutter client for the [website's shared Express/PostgreSQL backend](../attendan
 - Signup is closed. Only administrators issue accounts through the website.
 - Attendance is manual and daily: one record per subject/date. Recognition entry points are hidden; its implementation/issues remain preserved and deferred.
 - Programme, semester, subject and enrollment data come from the backend/database. The old curriculum asset is no longer bundled or read.
-- New accounts use the default password 12345678 and can sign in immediately. Password changes are optional and keep existing sessions signed in.
-- Teacher tabs: Home, Attendance, Subjects, Profile. Student tabs: Home, Attendance, Reports, Profile.
-- Profiles are role-aware; only teachers edit avatars/default thresholds. Student reports use configured DB targets and distinguish overall from selected-subject attendance.
+- New accounts use the initial password 12345678 and can sign in immediately. Password changes are optional and keep existing sessions signed in.
+- Teacher tabs: Home, Attendance, Subjects, Profile. Tapping an assigned subject opens its enrolled student list. The Home cards show total students, classes held, and today's present and absent counts. Student tabs: Home, Attendance, Reports, Profile.
+- Students and teachers can upload profile photos and edit their required Institution field. Profile's info button shows aligned developer contact cards and opens one bug-report email addressed to both developers. Only teachers edit default thresholds. Student reports use configured DB targets and distinguish overall from selected-subject attendance.
+- Manual attendance shows the roster without summary counters. Saving reloads the saved day and refreshes the teacher dashboard and Attendance tab. Active loading and saving states use the shared branded loading view for at least one second.
 
 ## Setup
 
 Use Flutter with Dart compatible with pubspec's `^3.11.5`. Start the sibling API/database, then:
 
-Copy [.env.example](.env.example) to .env for a new checkout, then set API_BASE_URL to the reachable backend address. The local .env was created without overwriting existing values. For a physical phone, replace localhost with the server LAN address. Then run:
+Copy [.env.example](.env.example) to .env for a new checkout, then set API_BASE_URL to the reachable backend address. For a physical phone, use the server LAN address or private DNS name. Android debug builds permit HTTP for LAN testing; release builds need HTTPS. Then run:
 
 ```powershell
 flutter pub get
@@ -25,7 +26,9 @@ flutter run
 
 `API_BASE_URL` includes `/api` without a trailing slash. It is read from the bundled .env by flutter_dotenv before runApp; restart the app after changing it. No extra command-line flags are required. A physical phone needs a reachable computer LAN address; Android emulator usually uses 10.0.2.2. Phone localhost refers to the phone. Supply HTTPS for production and keep backend secrets off the client.
 
-The app has no offline attendance queue. Cached sessions survive a temporary outage, but attendance/API calls still require network. Active JSON calls time out after 30 seconds; teacher avatar uploads after 60 seconds. Authentication failures clear the session and return to login.
+The loading logo is packaged as `assets/attendify_loading_logo.png`. Install the newly built APK after asset changes; hot reload alone does not replace an older installed asset bundle.
+
+The app has no offline attendance queue. Cached sessions survive a temporary outage, but attendance/API calls still require network. Active JSON calls time out after 30 seconds; profile photo uploads after 60 seconds. Authentication failures clear the session and return to login.
 
 ## Manual workflow
 

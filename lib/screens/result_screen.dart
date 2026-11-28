@@ -59,6 +59,7 @@ class _ResultScreenState extends State<ResultScreen> {
   int get absentCount => attendance.where((e) => e["present"] == false).length;
 
   Future<void> saveChanges() async {
+    if (saving) return;
     try {
       setState(() {
         saving = true;

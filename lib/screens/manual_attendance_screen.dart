@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../services/attendance_service.dart';
+import '../widgets/app_loading_view.dart';
 
 class ManualAttendanceScreen extends StatefulWidget {
   final String subjectId;
@@ -26,6 +27,7 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
 
   bool isLoading = true;
   bool isSubmitting = false;
+  String? loadError;
 
   @override
   void initState() {
@@ -34,6 +36,12 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
   }
 
   Future<void> fetchStudents() async {
+    final loadingTimer = MinimumLoadingTimer();
+    setState(() {
+      isLoading = true;
+      loadError = null;
+    });
+
     try {
       final data = await AttendanceService.fetchStudents(widget.subjectId);
       final daily = await AttendanceService.getDailyAttendance(
@@ -44,31 +52,31 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
         for (final row in daily) row['studentId']: row['present'] == true,
       };
 
+      await loadingTimer.wait();
       if (!mounted) return;
 
       setState(() {
         students = data;
-
-        for (final student in students) {
-          attendanceMap[student['id']] = existing[student['id']] ?? false;
-        }
-
+        attendanceMap = {
+          for (final student in data)
+            student['id'].toString(): existing[student['id']] ?? false,
+        };
         isLoading = false;
       });
     } catch (e) {
+      await loadingTimer.wait();
       if (!mounted) return;
 
       setState(() {
         isLoading = false;
+        loadError = 'Could not load the student roster. Please try again.';
       });
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Failed to load students")));
     }
   }
 
   Future<void> submitAttendance() async {
+    if (isSubmitting) return;
+    final loadingTimer = MinimumLoadingTimer();
     setState(() {
       isSubmitting = true;
     });
@@ -83,6 +91,11 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
         records,
         date: date,
       );
+
+      // Reload the saved day before returning so the next view starts from
+      // server state rather than a stale local attendance map.
+      await fetchStudents();
+      await loadingTimer.wait();
 
       if (!mounted) return;
 
@@ -103,8 +116,9 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
         ),
       );
 
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     } catch (e) {
+      await loadingTimer.wait();
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -150,22 +164,6 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
     }
   }
 
-  int get presentCount {
-    return attendanceMap.values.where((value) => value).length;
-  }
-
-  int get absentCount {
-    return attendanceMap.values.where((value) => !value).length;
-  }
-
-  double get presentPercentage {
-    if (students.isEmpty) {
-      return 0;
-    }
-
-    return presentCount / students.length;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -183,11 +181,25 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
         ),
       ),
 
-      body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.deepPurple),
+      body: Stack(
+        children: [
+          if (isLoading)
+            const AppLoadingView(message: 'Loading student attendance…')
+          else if (loadError != null)
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(loadError!),
+                  TextButton(
+                    onPressed: fetchStudents,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
             )
-          : Column(
+          else
+            Column(
               children: [
                 Expanded(
                   child: ListView(
@@ -196,10 +208,6 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
                       _subjectHeader(),
 
                       const SizedBox(height: 18),
-
-                      _attendanceSummary(),
-
-                      const SizedBox(height: 16),
 
                       _bulkActions(),
 
@@ -220,6 +228,15 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
                 _submitButton(),
               ],
             ),
+          if (isSubmitting)
+            const Positioned.fill(
+              child: AppLoadingView(
+                message: 'Saving attendance and refreshing…',
+                overlay: true,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -288,155 +305,12 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
-                const SizedBox(height: 3),
-
-                Text(
-                  "${students.length} students",
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
               ],
             ),
           ),
         ],
       ),
     );
-  }
-
-  // =========================================================
-  // SUMMARY
-  // =========================================================
-
-  Widget _attendanceSummary() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.grey.shade100),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
-            blurRadius: 15,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _summaryItem(
-                  icon: Icons.groups_rounded,
-                  iconColor: Colors.deepPurple,
-                  iconBackground: const Color(0xffEEEAFE),
-                  value: students.length.toString(),
-                  title: "Total Students",
-                ),
-              ),
-
-              _divider(),
-
-              Expanded(
-                child: _summaryItem(
-                  icon: Icons.check_circle_rounded,
-                  iconColor: Colors.green,
-                  iconBackground: const Color(0xffE8F8EE),
-                  value: presentCount.toString(),
-                  title: "Present",
-                ),
-              ),
-
-              _divider(),
-
-              Expanded(
-                child: _summaryItem(
-                  icon: Icons.cancel_rounded,
-                  iconColor: Colors.red,
-                  iconBackground: const Color(0xffffeeee),
-                  value: absentCount.toString(),
-                  title: "Absent",
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: presentPercentage,
-              minHeight: 7,
-              backgroundColor: const Color(0xffffe9e9),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-            ),
-          ),
-
-          const SizedBox(height: 7),
-
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "${(presentPercentage * 100).toStringAsFixed(0)}% of students marked present",
-              style: TextStyle(
-                color: Colors.grey.shade500,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryItem({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBackground,
-    required String value,
-    required String title,
-  }) {
-    return Column(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: iconBackground,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: iconColor, size: 20),
-        ),
-
-        const SizedBox(height: 7),
-
-        Text(
-          value,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-
-        const SizedBox(height: 2),
-
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _divider() {
-    return Container(width: 1, height: 62, color: Colors.grey.shade100);
   }
 
   // =========================================================
@@ -550,35 +424,13 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
   // =========================================================
 
   Widget _sectionHeader() {
-    return Row(
-      children: [
-        const Expanded(
-          child: Text(
-            "Students",
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ),
-
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: const Color(0xffEEEAFE),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            "$presentCount / ${students.length}",
-            style: const TextStyle(
-              color: Colors.deepPurple,
-              fontWeight: FontWeight.bold,
-              fontSize: 11,
-            ),
-          ),
-        ),
-      ],
+    return const Text(
+      "Students",
+      style: TextStyle(
+        fontSize: 19,
+        fontWeight: FontWeight.bold,
+        letterSpacing: -0.2,
+      ),
     );
   }
 
@@ -780,14 +632,7 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
             ),
           ),
           child: isSubmitting
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2.2,
-                  ),
-                )
+              ? const Text('Saving…')
               : const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

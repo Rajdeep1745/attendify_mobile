@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_loading_view.dart';
 
 import '../models/subject_model.dart';
 import '../services/attendance_service.dart';
@@ -113,6 +114,7 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
 
     if (!mounted) return;
 
+    final loadingTimer = MinimumLoadingTimer();
     setState(() {
       isLoading = true;
       report = {};
@@ -123,6 +125,7 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
         subject.subjectId,
       );
 
+      await loadingTimer.wait();
       if (!mounted) return;
 
       setState(() {
@@ -130,6 +133,7 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
         isLoading = false;
       });
     } catch (_) {
+      await loadingTimer.wait();
       if (!mounted) return;
 
       setState(() {
@@ -1868,10 +1872,9 @@ class _StudentReportsTabState extends State<StudentReportsTab> {
   // =========================================================
 
   Widget _loading() {
-    return const Padding(
-      padding: EdgeInsets.only(top: 90),
-
-      child: Center(child: CircularProgressIndicator(color: Colors.deepPurple)),
+    return const SizedBox(
+      height: 320,
+      child: AppLoadingView(message: 'Loading your report…'),
     );
   }
 

@@ -6,6 +6,8 @@ import 'attendance_tab.dart';
 import 'subjects_tab.dart';
 import 'home_tab.dart';
 import 'profile_tab.dart';
+import '../widgets/app_loading_view.dart';
+import '../widgets/profile_info_button.dart';
 import '../services/auth_service.dart';
 
 class MainShell extends StatefulWidget {
@@ -22,6 +24,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   SubjectModel? selectedSubject;
 
   bool isLoading = true;
+  int attendanceVersion = 0;
 
   final List<String> titles = ["Home", "Attendance", "Subjects", "Profile"];
 
@@ -75,8 +78,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   Future<void> loadSubjects() async {
+    final loadingTimer = MinimumLoadingTimer();
     try {
       final data = await SubjectService.getSubjects();
+      await loadingTimer.wait();
 
       if (!mounted) return;
 
@@ -102,6 +107,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         isLoading = false;
       });
     } catch (err) {
+      await loadingTimer.wait();
       debugPrint("LOAD SUBJECTS ERROR: $err");
 
       if (!mounted) return;
@@ -308,6 +314,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         ),
 
         actions: [
+          if (currentIndex == 3) const ProfileInfoButton(),
           if (!isLoading && currentIndex != 3)
             Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -326,13 +333,21 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       ),
 
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppLoadingView(message: 'Loading your subjects…')
           : IndexedStack(
               index: currentIndex,
               children: [
-                HomeTab(selectedSubject: selectedSubject),
+                HomeTab(
+                  selectedSubject: selectedSubject,
+                  onAttendanceSaved: () {
+                    setState(() => attendanceVersion++);
+                  },
+                ),
 
-                AttendanceTab(selectedSubject: selectedSubject),
+                AttendanceTab(
+                  key: ValueKey(attendanceVersion),
+                  selectedSubject: selectedSubject,
+                ),
 
                 SubjectsTab(
                   subjects: subjects,

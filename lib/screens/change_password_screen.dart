@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_loading_view.dart';
 
 import '../services/profile_service.dart';
 
@@ -29,15 +30,18 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   Future<void> _submit() async {
+    if (_saving) return;
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
+    final loadingTimer = MinimumLoadingTimer();
     setState(() => _saving = true);
     try {
       await ProfileService.changePassword(
         currentPassword: _currentController.text,
         newPassword: _newController.text,
       );
+      await loadingTimer.wait();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -49,6 +53,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       );
       Navigator.of(context).pop();
     } catch (e) {
+      await loadingTimer.wait();
       if (!mounted) return;
       final message = e.toString().replaceFirst('Exception: ', '');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -105,153 +110,163 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         iconTheme: const IconThemeData(color: Colors.black87),
         elevation: 0,
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Container(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: ListView(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xff5B45D9), Color(0xff8068F2)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Row(
-                children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: Colors.white24,
-                    child: Icon(
-                      Icons.shield_outlined,
-                      color: Colors.white,
-                      size: 30,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xff5B45D9), Color(0xff8068F2)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                  SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Secure your account',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          'Choose a strong password you have not used before.',
-                          style: TextStyle(color: Colors.white70, height: 1.35),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _currentController,
-                    obscureText: _obscureCurrent,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration: _decoration(
-                      'Current password',
-                      _obscureCurrent,
-                      () => setState(() => _obscureCurrent = !_obscureCurrent),
-                    ),
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Enter your current password'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _newController,
-                    obscureText: _obscureNew,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration: _decoration(
-                      'New password',
-                      _obscureNew,
-                      () => setState(() => _obscureNew = !_obscureNew),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Enter a new password';
-                      }
-                      if (value.length < 8) {
-                        return 'Use at least 8 characters';
-                      }
-                      if (value == _currentController.text) {
-                        return 'Choose a password different from the current one';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _confirmController,
-                    obscureText: _obscureConfirm,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration: _decoration(
-                      'Confirm new password',
-                      _obscureConfirm,
-                      () => setState(() => _obscureConfirm = !_obscureConfirm),
-                    ),
-                    validator: (value) => value != _newController.text
-                        ? 'Passwords do not match'
-                        : null,
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: _saving ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.deepPurple.withValues(
-                          alpha: 0.55,
-                        ),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  child: const Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.white24,
+                        child: Icon(
+                          Icons.shield_outlined,
+                          color: Colors.white,
+                          size: 30,
                         ),
                       ),
-                      child: _saving
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Update Password',
+                      SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Secure your account',
                               style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 15.5,
                               ),
                             ),
-                    ),
+                            SizedBox(height: 5),
+                            Text(
+                              'Choose a strong password you have not used before.',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+                const SizedBox(height: 24),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _currentController,
+                        obscureText: _obscureCurrent,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        decoration: _decoration(
+                          'Current password',
+                          _obscureCurrent,
+                          () => setState(
+                            () => _obscureCurrent = !_obscureCurrent,
+                          ),
+                        ),
+                        validator: (value) => (value == null || value.isEmpty)
+                            ? 'Enter your current password'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _newController,
+                        obscureText: _obscureNew,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        decoration: _decoration(
+                          'New password',
+                          _obscureNew,
+                          () => setState(() => _obscureNew = !_obscureNew),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Enter a new password';
+                          }
+                          if (value.length < 8) {
+                            return 'Use at least 8 characters';
+                          }
+                          if (value == _currentController.text) {
+                            return 'Choose a password different from the current one';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _confirmController,
+                        obscureText: _obscureConfirm,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        decoration: _decoration(
+                          'Confirm new password',
+                          _obscureConfirm,
+                          () => setState(
+                            () => _obscureConfirm = !_obscureConfirm,
+                          ),
+                        ),
+                        validator: (value) => value != _newController.text
+                            ? 'Passwords do not match'
+                            : null,
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: _saving ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.deepPurple
+                                .withValues(alpha: 0.55),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: _saving
+                              ? const Text('Saving…')
+                              : const Text(
+                                  'Update Password',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15.5,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_saving)
+            const Positioned.fill(
+              child: AppLoadingView(
+                message: 'Updating password…',
+                overlay: true,
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

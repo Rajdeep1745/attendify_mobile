@@ -2,29 +2,35 @@ import 'package:flutter/material.dart';
 
 import '../models/subject_model.dart';
 import '../services/attendance_service.dart';
+import '../widgets/app_loading_view.dart';
 import 'manual_attendance_screen.dart';
 
 class HomeTab extends StatefulWidget {
   final SubjectModel? selectedSubject;
+  final VoidCallback onAttendanceSaved;
 
-  const HomeTab({super.key, required this.selectedSubject});
+  const HomeTab({
+    super.key,
+    required this.selectedSubject,
+    required this.onAttendanceSaved,
+  });
 
   @override
   State<HomeTab> createState() => _HomeTabState();
 }
 
 class _HomeTabState extends State<HomeTab> {
-  double attendancePercentage = 0;
   int totalClasses = 0;
 
   int currentThreshold = 75;
   bool isUpdatingThreshold = false;
+  bool _openingManualAttendance = false;
 
-  double todayAttendancePercentage = 0;
   int todayPresentCount = 0;
-
-  bool todayAttendanceTaken = false;
+  int todayAbsentCount = 0;
   bool isStatsLoading = false;
+  bool statsFailed = false;
+  int _statsRequest = 0;
 
   @override
   void initState() {
@@ -43,19 +49,19 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Future<void> loadStats() async {
+    final requestId = ++_statsRequest;
     final subject = widget.selectedSubject;
 
     if (subject == null) {
       if (!mounted) return;
 
       setState(() {
-        attendancePercentage = 0;
         totalClasses = 0;
         currentThreshold = 75;
-        todayAttendancePercentage = 0;
         todayPresentCount = 0;
-        todayAttendanceTaken = false;
+        todayAbsentCount = 0;
         isStatsLoading = false;
+        statsFailed = false;
       });
 
       return;
@@ -63,7 +69,9 @@ class _HomeTabState extends State<HomeTab> {
 
     setState(() {
       isStatsLoading = true;
+      statsFailed = false;
     });
+    final loadingTimer = MinimumLoadingTimer();
 
     if (mounted) {
       setState(() {
@@ -88,60 +96,53 @@ class _HomeTabState extends State<HomeTab> {
       final daily = results[1] as List<dynamic>;
 
       int presentCount = 0;
+      int absentCount = 0;
 
       for (final student in daily) {
         final present = student["present"];
 
         if (present == true) {
           presentCount++;
+        } else if (present == false) {
+          absentCount++;
         }
       }
 
-      final totalStudents = daily.length;
-
-      final hasAnyAttendance = daily.any(
-        (student) => student["present"] != null,
-      );
-
-      final todayPercentage = totalStudents == 0
-          ? 0.0
-          : (presentCount / totalStudents) * 100;
-
-      if (!mounted) return;
+      await loadingTimer.wait();
+      if (!mounted || requestId != _statsRequest) return;
 
       setState(() {
-        attendancePercentage =
-            double.tryParse(stats["avgAttendance"]?.toString() ?? "0") ?? 0;
-
         totalClasses =
             int.tryParse(stats["totalClasses"]?.toString() ?? "0") ?? 0;
 
         todayPresentCount = presentCount;
-
-        todayAttendancePercentage = todayPercentage;
-
-        todayAttendanceTaken = hasAnyAttendance;
+        todayAbsentCount = absentCount;
 
         isStatsLoading = false;
+        statsFailed = false;
       });
     } catch (e) {
       debugPrint("HOME STATS ERROR: $e");
 
-      if (!mounted) return;
+      await loadingTimer.wait();
+      if (!mounted || requestId != _statsRequest) return;
 
       setState(() {
-        attendancePercentage = 0;
         totalClasses = 0;
-        todayAttendancePercentage = 0;
         todayPresentCount = 0;
-        todayAttendanceTaken = false;
+        todayAbsentCount = 0;
         isStatsLoading = false;
+        statsFailed = true;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (isStatsLoading) {
+      return const AppLoadingView(message: 'Refreshing attendance overview…');
+    }
+
     final subject = widget.selectedSubject;
 
     final totalStudents = subject?.totalStudents ?? 0;
@@ -167,6 +168,15 @@ class _HomeTabState extends State<HomeTab> {
 
           _overviewGrid(totalStudents: totalStudents),
 
+          if (statsFailed) ...[
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: loadStats,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text("Couldn't load attendance counts. Retry"),
+            ),
+          ],
+
           const SizedBox(height: 24),
 
           _sectionTitle("Quick Actions"),
@@ -180,6 +190,17 @@ class _HomeTabState extends State<HomeTab> {
             iconColor: Colors.orange,
             iconBackground: const Color(0xfffff2df),
             onTap: () => _openManualAttendance(subject),
+          ),
+
+          const SizedBox(height: 12),
+
+          _actionCard(
+            title: "Attendance Threshold",
+            subtitle: "Current target: $currentThreshold%",
+            icon: Icons.tune_rounded,
+            iconColor: Colors.deepPurple,
+            iconBackground: const Color(0xffEEEAFE),
+            onTap: _showThresholdDialog,
           ),
         ],
       ),
@@ -201,13 +222,6 @@ class _HomeTabState extends State<HomeTab> {
             fontWeight: FontWeight.bold,
             letterSpacing: -0.6,
           ),
-        ),
-
-        const SizedBox(height: 5),
-
-        Text(
-          "Here's how your subject attendance is looking.",
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
         ),
       ],
     );
@@ -331,36 +345,40 @@ class _HomeTabState extends State<HomeTab> {
           iconBackground: const Color(0xffEEEAFE),
         ),
 
-        // TOP RIGHT
         _statCard(
           value: isStatsLoading
               ? "..."
-              : todayAttendanceTaken
-              ? "${todayAttendancePercentage.toStringAsFixed(0)}%"
-              : "Not Taken",
-          title: "Today's Attendance",
-          icon: Icons.today_rounded,
+              : statsFailed
+              ? "—"
+              : "$totalClasses",
+          title: "Classes Held",
+          icon: Icons.class_rounded,
           iconColor: Colors.blue,
           iconBackground: const Color(0xffE8F3FF),
         ),
 
-        // BOTTOM LEFT
         _statCard(
-          value: "$currentThreshold%",
-          title: "Attendance Threshold",
-          icon: Icons.warning_amber_rounded,
-          iconColor: Colors.orange,
-          iconBackground: const Color(0xfffff2df),
-          onTap: () => _showThresholdDialog(),
-        ),
-
-        // BOTTOM RIGHT
-        _statCard(
-          value: isStatsLoading ? "..." : "$totalClasses",
-          title: "Classes Held",
-          icon: Icons.class_rounded,
+          value: isStatsLoading
+              ? "..."
+              : statsFailed
+              ? "—"
+              : "$todayPresentCount",
+          title: "Present Count",
+          icon: Icons.check_circle_rounded,
           iconColor: Colors.green,
           iconBackground: const Color(0xffE8F8EE),
+        ),
+
+        _statCard(
+          value: isStatsLoading
+              ? "..."
+              : statsFailed
+              ? "—"
+              : "$todayAbsentCount",
+          title: "Absent Count",
+          icon: Icons.cancel_rounded,
+          iconColor: Colors.orange,
+          iconBackground: const Color(0xfffff2df),
         ),
       ],
     );
@@ -545,119 +563,134 @@ class _HomeTabState extends State<HomeTab> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              title: const Text(
-                "Attendance Threshold",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    "Set the minimum attendance required for ${subject.name}.",
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    "$selectedThreshold%",
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Slider(
-                    value: selectedThreshold.toDouble(),
-                    min: 0,
-                    max: 100,
-                    divisions: 20,
-                    label: "$selectedThreshold%",
-                    activeColor: Colors.deepPurple,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        selectedThreshold = value.round();
-                      });
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                  },
-                  child: const Text("Cancel"),
-                ),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                Center(
+                  child: AlertDialog(
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                  ),
-                  onPressed: isUpdatingThreshold
-                      ? null
-                      : () async {
-                          setDialogState(() {
-                            isUpdatingThreshold = true;
-                          });
-
-                          try {
-                            final updatedThreshold =
-                                await AttendanceService.updateThreshold(
-                                  subject.subjectId,
-                                  selectedThreshold,
-                                );
-
-                            if (!mounted) return;
-
-                            setState(() {
-                              currentThreshold = updatedThreshold;
-                            });
-
-                            if (dialogContext.mounted) {
-                              Navigator.pop(dialogContext);
-                            }
-
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  "Threshold updated to $updatedThreshold%",
-                                ),
-                              ),
-                            );
-                          } catch (e) {
-                            setDialogState(() {
-                              isUpdatingThreshold = false;
-                            });
-
-                            if (!dialogContext.mounted) return;
-
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  e.toString().replaceFirst("Exception: ", ""),
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                  child: isUpdatingThreshold
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                    title: const Text(
+                      "Attendance Threshold",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "Set the minimum attendance required for ${subject.name}.",
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 14,
                           ),
-                        )
-                      : const Text("Save"),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          "$selectedThreshold%",
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Slider(
+                          value: selectedThreshold.toDouble(),
+                          min: 0,
+                          max: 100,
+                          divisions: 20,
+                          label: "$selectedThreshold%",
+                          activeColor: Colors.deepPurple,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedThreshold = value.round();
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                        },
+                        child: const Text("Cancel"),
+                      ),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: isUpdatingThreshold
+                            ? null
+                            : () async {
+                                if (isUpdatingThreshold) return;
+                                final loadingTimer = MinimumLoadingTimer();
+                                setDialogState(() {
+                                  isUpdatingThreshold = true;
+                                });
+
+                                try {
+                                  final updatedThreshold =
+                                      await AttendanceService.updateThreshold(
+                                        subject.subjectId,
+                                        selectedThreshold,
+                                      );
+                                  await loadingTimer.wait();
+
+                                  if (!mounted) return;
+
+                                  setState(() {
+                                    currentThreshold = updatedThreshold;
+                                  });
+
+                                  if (dialogContext.mounted) {
+                                    Navigator.pop(dialogContext);
+                                  }
+
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        "Threshold updated to $updatedThreshold%",
+                                      ),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  await loadingTimer.wait();
+                                  setDialogState(() {
+                                    isUpdatingThreshold = false;
+                                  });
+
+                                  if (!dialogContext.mounted) return;
+
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        e.toString().replaceFirst(
+                                          "Exception: ",
+                                          "",
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                        child: Text(isUpdatingThreshold ? 'Saving…' : 'Save'),
+                      ),
+                    ],
+                  ),
                 ),
+                if (isUpdatingThreshold)
+                  const AppLoadingView(
+                    message: 'Saving attendance threshold…',
+                    overlay: true,
+                  ),
               ],
             );
           },
@@ -686,21 +719,29 @@ class _HomeTabState extends State<HomeTab> {
   // =========================================================
 
   Future<void> _openManualAttendance(SubjectModel? subject) async {
+    if (_openingManualAttendance) return;
     if (subject == null) {
       _showSelectSubject();
       return;
     }
 
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ManualAttendanceScreen(
-          subjectId: subject.subjectId,
-          subjectName: subject.name,
+    _openingManualAttendance = true;
+    try {
+      final saved = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ManualAttendanceScreen(
+            subjectId: subject.subjectId,
+            subjectName: subject.name,
+          ),
         ),
-      ),
-    );
-    if (mounted) await loadStats();
+      );
+      if (!mounted) return;
+      if (saved == true) widget.onAttendanceSaved();
+      await loadStats();
+    } finally {
+      _openingManualAttendance = false;
+    }
   }
 
   void _showSelectSubject() {

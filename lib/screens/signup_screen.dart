@@ -45,6 +45,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> signupUser() async {
+    if (isLoading) return;
     FocusScope.of(context).unfocus();
 
     if (!formKey.currentState!.validate()) return;
@@ -133,7 +134,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 child: Column(
                   children: [
                     const Text(
-                      "Smart Attendance",
+                      "Attendify",
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w600,
