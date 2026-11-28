@@ -1,6 +1,6 @@
-# Smart Attendance — Flutter app
+# Attendify — Flutter app
 
-Flutter client for the [website's shared Express/PostgreSQL backend](../attendance-app-cu/README.md). Read [handover.md](handover.md) for architecture and [issue statuses](../attendance-app-cu/ISSUES_REVIEW.md) for deferred work.
+Flutter client for the [website's shared Express/PostgreSQL backend](../attendance-app-cu/README.md). Read [handover.md](handover.md) for architecture and deferred work.
 
 ## Current behavior
 
@@ -9,14 +9,14 @@ Flutter client for the [website's shared Express/PostgreSQL backend](../attendan
 - Programme, semester, subject and enrollment data come from the backend/database. The old curriculum asset is no longer bundled or read.
 - New accounts use the initial password 12345678 and can sign in immediately. Password changes are optional and keep existing sessions signed in.
 - Teacher tabs: Home, Attendance, Subjects, Profile. Tapping an assigned subject opens its enrolled student list. The Home cards show total students, classes held, and today's present and absent counts. Student tabs: Home, Attendance, Reports, Profile.
-- Students and teachers can upload profile photos and edit their required Institution field. Profile's info button shows aligned developer contact cards and opens one bug-report email addressed to both developers. Only teachers edit default thresholds. Student reports use configured DB targets and distinguish overall from selected-subject attendance.
+- Students and teachers can upload profile photos and edit their required Institution field. Profile's info button shows aligned developer contact cards; Report a bug and Request a feature each open one email addressed to both developers. Only teachers edit default thresholds. Student reports use configured DB targets and distinguish overall from selected-subject attendance.
 - Manual attendance shows the roster without summary counters. Saving reloads the saved day and refreshes the teacher dashboard and Attendance tab. Active loading and saving states use the shared branded loading view for at least one second.
 
 ## Setup
 
 Use Flutter with Dart compatible with pubspec's `^3.11.5`. Start the sibling API/database, then:
 
-Copy [.env.example](.env.example) to .env for a new checkout, then set API_BASE_URL to the reachable backend address. For a physical phone, use the server LAN address or private DNS name. Android debug builds permit HTTP for LAN testing; release builds need HTTPS. Then run:
+Copy [.env.example](.env.example) to .env for a new checkout, then set API_BASE_URL to the reachable backend address. For a physical phone, use the server LAN address or private DNS name. Android debug builds permit HTTP for LAN testing. Release builds do not enable cleartext HTTP, so configure HTTPS before distributing one. Gradle does not reject an HTTP URL at build time. Then run:
 
 ```powershell
 flutter pub get
@@ -25,6 +25,8 @@ flutter run
 ```
 
 `API_BASE_URL` includes `/api` without a trailing slash. It is read from the bundled .env by flutter_dotenv before runApp; restart the app after changing it. No extra command-line flags are required. A physical phone needs a reachable computer LAN address; Android emulator usually uses 10.0.2.2. Phone localhost refers to the phone. Supply HTTPS for production and keep backend secrets off the client.
+
+The website serves a manually maintained APK at `public/apk/Attendify.apk`. The current file matches the local release artifact. Later updates must keep the same application ID and signing key. Installing a sideloaded APK may still show an Android or browser warning.
 
 The loading logo is packaged as `assets/attendify_loading_logo.png`. Install the newly built APK after asset changes; hot reload alone does not replace an older installed asset bundle.
 
@@ -43,22 +45,13 @@ The app has no offline attendance queue. Cached sessions survive a temporary out
 ```powershell
 flutter analyze --no-pub
 flutter test --no-pub
-flutter build apk --debug
 ```
 
 No new test code was added, as requested. Existing [widget_test.dart](test/widget_test.dart) covers splash-to-login only; run existing checks without implying broader coverage. No physical mobile device was connected during this update. Camera/recognition behavior is deferred.
 
-## Android release identity and signing
+## Android identity
 
-The application ID uniquely identifies the installed app/store listing. A release signing key proves that later updates come from the same publisher. Keep that key and its passwords private and backed up.
-
-Development retains the current sample ID; release builds intentionally require your own configuration:
-
-1. Choose a permanent application ID and set `ATTENDIFY_APPLICATION_ID` in private Gradle properties.
-2. Create/provide a release keystore; copy [key.properties.example](android/key.properties.example) to ignored `android/key.properties` and supply its details.
-3. Build release only after identity/signing are configured. Debug signing is no longer silently used for release.
-
-Java/Kotlin target is 17; AGP 8.11.1, Kotlin 2.2.20, Gradle 9.1.0. The CameraX override is retained because recognition is out of scope. iOS gallery purpose text is configured for profile photos; camera recognition permission/device validation remains deferred.
+Keep the release application ID and signing key stable for future updates. Store the signing key privately and back it up. The current release artifact is also copied manually to the website's fixed download path. Java/Kotlin target is 17; AGP 8.11.1, Kotlin 2.2.20, Gradle 9.1.0. The CameraX override is retained because recognition is out of scope. iOS gallery purpose text is configured for profile photos; camera recognition permission/device validation remains deferred.
 
 ## Code map
 

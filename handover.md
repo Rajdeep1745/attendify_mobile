@@ -1,10 +1,10 @@
-# Smart Attendance — mobile handover
+# Attendify — mobile handover
 
 ## Network/security update (2026-11-28)
 
-Android debug builds now allow HTTP for testing on the college LAN. Release builds require the bundled `API_BASE_URL` to use HTTPS, along with the existing permanent app ID and signing key requirements. See the sibling [network deployment guide](../attendance-app-cu/docs/network-deployment.md). New backend imports continue to use the shared initial password `12345678`. Students and teachers can upload profile photos from the mobile Profile tab. Selecting a teacher subject opens its enrolled student list; the teacher dashboard shows total students, classes held, and today's present and absent counts.
+Android debug builds allow HTTP for testing on the college LAN. The release manifest does not enable cleartext HTTP, so use HTTPS for distribution. Gradle does not currently validate the `API_BASE_URL` scheme; it can build a release APK whose API calls fail on Android if the bundled URL is HTTP. Release builds do require a configured application ID and signing key. New backend imports continue to use the shared initial password `12345678`. Students and teachers can upload profile photos from the mobile Profile tab. Selecting a teacher subject opens its enrolled student list; the teacher dashboard shows total students, classes held, and today's present and absent counts in that order.
 
-Manual attendance no longer shows present/absent/total counters. Saving reloads that day's server records, closes the page, and refreshes teacher Home and Attendance; active loading and saving use `AppLoadingView` with the actual Attendify logo. Profile has an editable required Institution field, and its info button shows aligned developer contacts and one bug-report `mailto` action addressed to both developers through `url_launcher`. Photo upload reads the saved avatar back from `/users/me`; the backend must be redeployed for student uploads to work on the VM. Existing database rows with blank institution need their real institution supplied when their profile is next saved; no value was invented for them.
+Manual attendance has no present/absent/total counters. Saving reloads that day's server records, closes the page, and refreshes teacher Home and Attendance; active loading and saving use `AppLoadingView` with the Attendify logo. Profile has an editable required Institution field. Its info button shows aligned developer contacts and separate bug-report and feature-request `mailto` actions, each addressed to both developers through `url_launcher`. Photo upload reads the saved avatar back from `/users/me`; the backend must be redeployed for student uploads to work on the VM. Existing database rows with blank institution need their real institution supplied when their profile is next saved; no value was invented for them.
 
 Mobile write handlers now return immediately while their previous request is active. The profile photo picker and subject-page navigation also have synchronous guards against repeated taps. Existing loading feedback remains visible during requests.
 
@@ -12,7 +12,7 @@ Active loading flows now remain visible for at least one second. The loading log
 
 ## Current scope and rules
 
-The app uses the sibling [Express/PostgreSQL backend](../attendance-app-cu/handover.md). Public signup is closed; only admin-issued accounts can log in. Attendance is manual and daily, one subject/date record. Programme/semester metadata comes from database responses. Matching academic changes re-enroll students, including previous admin removals. Face-recognition screens/services are retained but hidden and their issues remain deferred in [ISSUES_REVIEW.md](../attendance-app-cu/ISSUES_REVIEW.md).
+The app uses the sibling [Express/PostgreSQL backend](../attendance-app-cu/handover.md). Public signup is closed; only admin-issued accounts can log in. Attendance is manual and daily, one subject/date record. Programme/semester metadata comes from database responses. Matching academic changes re-enroll students, including previous admin removals. Face-recognition screens/services are retained but hidden; their known limitations are listed below.
 
 No new test code was requested. Follow the global opt-in policy in C:/Users/Dell/.codex/test.md; do not add tests without an explicit yes. Existing checks and manual verification are permitted. Read [README.md](README.md) for setup/release instructions and check git status before editing.
 
@@ -61,7 +61,7 @@ Dependencies include http/http_parser, shared_preferences, camera, image_picker/
 | lib/screens/student_attendance_tab.dart                                 | Subject percentage/target and subject history detail                                               |
 | lib/screens/student_reports_tab.dart                                    | Overview-first reports, selected subject, explicit impossible/unlimited projections                |
 | lib/screens/profile_tab.dart                                            | Role-aware profile; student/teacher avatar, teacher preferences and threshold handling             |
-| lib/widgets/app_loading_view.dart, profile_info_button.dart            | Shared branded loading state and profile developer/bug-report menu                                  |
+| lib/widgets/app_loading_view.dart, profile_info_button.dart             | Shared branded loading state and profile developer/bug-report/feature-request menu                 |
 | lib/screens/change_password_screen.dart                                 | Optional profile action; successful change returns to Profile and keeps the session                |
 | lib/screens/camera_screen.dart, preview_screen.dart, result_screen.dart | Retained inactive recognition flow; do not repair without authorization                            |
 | test/widget_test.dart                                                   | Existing mocked-preference splash/login check; unchanged                                           |
@@ -92,7 +92,7 @@ baseUrl includes /api and omits trailing slash. Bearer JWT is required for prote
 | GET /users/me                             | Flat role profile; default_threshold for teacher; attendance_percentage and attendance_target for student      |
 | PATCH /users/me                           | name/department/institution (nonblank institution required); teacher defaultThreshold is camelCase             |
 | PATCH /users/me/password                  | currentPassword,newPassword; 8–128 chars, different; preserves existing sessions                               |
-| PATCH /users/me/avatar                    | Student/teacher multipart avatar JPEG; no profile photo file size check                                         |
+| PATCH /users/me/avatar                    | Student/teacher multipart avatar JPEG; no profile photo file size check                                        |
 | GET /subject/teacher or /subject/student  | Assigned/enrolled DB subjects with identity, name, programme/semester, threshold/count                         |
 | PATCH /subject/:id/threshold              | Integer threshold 0–100                                                                                        |
 | GET /students/:id                         | Roster id/name/roll/avatar/attendance; contacts returned to teachers only                                      |
@@ -123,11 +123,11 @@ Home no longer opens camera. The old camera→preview→result flow is retained.
 
 ## Configuration and release
 
-Set API_BASE_URL=http://<reachable-host>:5000/api in .env for a device; use HTTPS in production. Physical phone localhost means the phone; emulator can use 10.0.2.2. There are no client DB/admin secrets. Its ignored .env is bundled as an asset and loaded by flutter_dotenv before runApp. Use plain flutter run; keep backend secrets on the server. The API no longer restricts browser origins for Flutter web previews.
+Set API_BASE_URL=http://<reachable-host>:5000/api in .env for a LAN test device; use HTTPS for regular distribution. Physical phone localhost means the phone; emulator can use 10.0.2.2. There are no client DB/admin secrets. Its ignored .env is bundled as an asset and loaded by flutter_dotenv before runApp. Use plain flutter run; keep backend secrets on the server. The API uses unrestricted CORS responses for Flutter web previews; native clients normally send no browser Origin header.
 
-Android debug builds keep the existing sample identity. Release now requires ATTENDIFY_APPLICATION_ID in private Gradle properties and android/key.properties with a real keystore; see android/key.properties.example. No real signing key or permanent identity was invented. Key files are ignored. Java/Kotlin 17, AGP 8.11.1, Kotlin 2.2.20 and Gradle 9.1.0 remain unchanged.
+Android debug builds keep the existing sample identity. Release identity and signing are configured privately; keep both stable for future updates. Key files are ignored. Java/Kotlin 17, AGP 8.11.1, Kotlin 2.2.20 and Gradle 9.1.0 remain unchanged. The website's `public/apk/Attendify.apk` is maintained manually under that fixed filename. The current local `.env` uses an HTTP API URL, so the release APK's network access on Android remains unverified and may fail because cleartext traffic is disallowed.
 
-iOS gallery usage text is present for profile photos. Camera permission/platform recognition validation remains deferred. The latest Android debug APK built successfully; authenticated photo and attendance flows still need acceptance on a device connected to the deployed VM.
+iOS gallery usage text is present for profile photos. Camera permission/platform recognition validation remains deferred. A local Android release APK exists and matches the website download artifact; authenticated photo and attendance flows still need acceptance on a device connected to the deployed VM.
 
 ## Next-agent workflow and checks
 
@@ -139,9 +139,9 @@ Use flutter analyze, existing flutter test, builds and manual review as appropri
 
 - Web production build with CI=true: passed, including the configured ESLint checks.
 - Flutter analyze --no-pub: no issues; existing flutter test --no-pub: 1 widget test passed.
-- Android debug APK: built successfully; release signing/identity still requires user configuration. Existing AGP/Kotlin future-support warnings remain documented, without a dependency upgrade in this task.
+- Android debug APK was built during an earlier update. A later local release APK now matches the website download artifact; identity and signing settings must be preserved for subsequent updates. Existing AGP/Kotlin future-support warnings remain.
 - Backend JavaScript syntax checks, documentation links, formatting and diff whitespace checks: passed.
-- Local API checks: signup 403; invalid login types 400; configured admin login/list reads 200; academic options 200; unapproved CORS origin 403. No attendance records/accounts were created or deleted during verification.
+- Earlier local API checks covered signup, invalid login, admin list reads and academic options. The later CORS change removed the origin-based 403 behavior. No attendance records/accounts were created or deleted during that verification.
 - Website and Flutter web login interfaces were visually reviewed; website invalid-login feedback was checked. No physical Android/iOS device was connected; full device/manual-save acceptance remains to be performed.
 - No new or modified test code; recognition source files remain unchanged. Existing data was preserved; the applied migration changes schema/security fields only.
 
@@ -151,4 +151,4 @@ Forced password-change redirects and the required-change screen mode were remove
 
 ## Current environment/password policy
 
-New admin-created accounts default to 12345678, with optional password changes and no token-version session revocation. Successful password change returns to Profile instead of logging out. Existing passwords are unchanged. The local .env is ignored by Git and bundled in the app; .env.example is tracked. flutter_dotenv loads API_BASE_URL from the bundled .env automatically; use plain flutter run or flutter build apk. Native Android/iOS calls normally send no Origin and are accepted by the unchanged API CORS rules; Flutter Web still requires an allowed browser origin.
+New admin-created accounts default to 12345678, with optional password changes and no token-version session revocation. Successful password change returns to Profile instead of logging out. Existing passwords are unchanged. The local .env is ignored by Git and bundled in the app; .env.example is tracked. flutter_dotenv loads API_BASE_URL from the bundled .env automatically. Native Android/iOS calls normally send no Origin; Flutter web receives unrestricted CORS responses from the current API.
