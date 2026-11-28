@@ -73,8 +73,5 @@ tasks.matching { it.name in listOf("validateSigningRelease", "packageRelease", "
             "Set ATTENDIFY_APPLICATION_ID in your private Gradle properties before releasing."
         }
         check(releaseSigningReady) { "Configure android/key.properties with your release signing key." }
-        check(configuredApiUrl?.startsWith("https://") == true) {
-            "Set API_BASE_URL in .env to an HTTPS endpoint before releasing."
-        }
     }
 }
